@@ -31,7 +31,7 @@ from clilm.query import query
     help="Number of runs to repeat",
 )
 @click.option(
-    "--clear/--no-clear", default=True, help="Clear existing project subdirectories"
+    "--clear/--no-clear", default=False, help="Clear existing project subdirectories"
 )
 @click.option(
     "--base_dir",
