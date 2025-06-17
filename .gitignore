@@ -1,0 +1,26 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Project ignores
+.vscode
+.ruff_cache
+.pytest_cache
+.langchain.db
+data
+local
+*.lock
+*.db
+log/
+prompt/
+output/
+
+projects/*
+!projects/wizard-of-math

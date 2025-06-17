@@ -1,0 +1,60 @@
+[project]
+name = "clilm"
+version = "0.1.0"
+description = "A CLI for utilizing language models with langchain"
+readme = "README.md"
+requires-python = ">=3.13"
+authors = [{name = "engisalor@github"}]
+dependencies = [
+    "click>=8.2.1",
+    "langchain-community>=0.3.25",
+    "langchain-huggingface>=0.3.0",
+    "langchain-ollama>=0.3.3",
+    "ollama>=0.5.1",
+    "sentence-transformers>=4.1.0",
+]
+
+[build-system]
+requires = ["flit_core >=3.11,<4"]
+build-backend = "flit_core.buildapi"
+
+dependencies = [
+    "click>=8.2.1",
+    "langchain-community>=0.3.25",
+    "langchain-huggingface>=0.3.0",
+    "langchain-ollama>=0.3.3",
+    "ollama>=0.5.1",
+    "sentence-transformers>=4.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+    "pytest>=8.4.0",
+    "ruff>=0.11.13",
+]
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # flake8-bugbear
+    "B",
+    # flake8-bandit
+    "S",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "src"
+]
+
+[project.scripts]
+clilm = "clilm.main:cli"
+
+[project.optional-dependencies]
+extra = [
+    "sgex>=0.7.5",
+]
