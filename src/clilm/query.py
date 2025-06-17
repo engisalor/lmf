@@ -1,6 +1,7 @@
 """Module for the `query` command, to make LLM queries."""
 
 import os
+import shutil
 from pathlib import Path
 
 import click
@@ -152,6 +153,11 @@ def query(
     rate_limiter: rate_limiter.RateLimiterType,
 ):
     """Executes LLM final prompts given a model and output structure."""
+
+    if ctx.obj["clear"]:
+        click.echo(f"... clearing {ctx.obj['output_dir']}")
+        shutil.rmtree(ctx.obj["output_dir"], ignore_errors=True)
+    ctx.obj["output_dir"].mkdir(exist_ok=True)
 
     command = Query(
         ctx=ctx,

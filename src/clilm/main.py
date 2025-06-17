@@ -97,19 +97,39 @@ def cli(
             m = f"No such directory: {project_dir}"
             raise FileNotFoundError(m)
 
-        # remove existing subdirectories
         if clear:
-            click.echo("... clearing project subdirectories")
+            click.echo(f"... clearing {log_dir}")
             shutil.rmtree(log_dir, ignore_errors=True)
-            shutil.rmtree(prompt_dir, ignore_errors=True)
-            shutil.rmtree(output_dir, ignore_errors=True)
-
-        # create directory structure
         log_dir.mkdir(exist_ok=True)
         (log_dir / prompt_dir.name).mkdir(exist_ok=True)
         (log_dir / output_dir.name).mkdir(exist_ok=True)
-        prompt_dir.mkdir(exist_ok=True)
-        output_dir.mkdir(exist_ok=True)
+
+
+@cli.command(context_settings={"show_default": True})
+@click.argument("project")
+@click.option(
+    "--base_dir",
+    default="projects",
+    type=click.Path(exists=False, file_okay=False, dir_okay=True),
+    help="Base directory containing projects",
+)
+def empty(
+    project: str | Path,
+    base_dir: str | Path,
+):
+    """Deletes a project's generated directories (prompt, output, log)."""
+    project_dir = Path(base_dir) / Path(project)
+    log_dir = project_dir / Path("log")
+    prompt_dir = project_dir / Path("prompt")
+    output_dir = project_dir / Path("output")
+    if not project_dir.exists():
+        m = f"No such directory: {project_dir}"
+        raise FileNotFoundError(m)
+
+    click.echo(f"... clearing {project_dir}")
+    shutil.rmtree(log_dir, ignore_errors=True)
+    shutil.rmtree(prompt_dir, ignore_errors=True)
+    shutil.rmtree(output_dir, ignore_errors=True)
 
 
 cli.add_command(query)

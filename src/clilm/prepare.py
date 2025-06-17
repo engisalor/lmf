@@ -1,6 +1,7 @@
 """Module for the `prepare` command, to prepare LLM prompts."""
 
 import os
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -139,6 +140,12 @@ def prepare(
     prompt_template: prompt_template.PromptTemplateType,
 ):
     """Prepares LLM final prompts from a recipe of components."""
+
+    if ctx.obj["clear"]:
+        click.echo(f"... clearing {ctx.obj['prompt_dir']}")
+        shutil.rmtree(ctx.obj["prompt_dir"], ignore_errors=True)
+    ctx.obj["prompt_dir"].mkdir(exist_ok=True)
+
     command = Prepare(
         ctx=ctx,
         k=k,
