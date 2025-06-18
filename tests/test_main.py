@@ -45,3 +45,18 @@ def test_clear():
     result = runner.invoke(cli, base_dir + project + ["clear"])
     for dir in [log_dir, output_dir, prompt_dir]:
         assert not (dir / Path("subdirectory")).exists()
+
+
+def test_bad_path():
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "--base-dir",
+            "/tests/missing/dir",
+            "-p",
+            "missing-project",
+            "clear",
+        ],
+    )
+    assert result.exit_code == 1
