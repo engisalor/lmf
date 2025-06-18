@@ -1,6 +1,8 @@
 """Module for utility functions."""
 
 import click
+import numpy as np
+from langchain_community.embeddings import OllamaEmbeddings
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 
@@ -40,3 +42,15 @@ def message_from_dict(
 ):
     """ "Returns a langchain message type (human, system, ai) from a dict."""
     return message_types[dict_message["type"]](**dict_message)
+
+
+class OllamaEmbeddingsNormalized(OllamaEmbeddings):
+    """Modified OllamaEmbeddings class that normalizes vectors.
+
+    Source:
+        https://github.com/ollama/ollama/issues/4128#issuecomment-2203403086
+    """
+
+    def _process_emb_response(self, input: str) -> list[float]:
+        emb = super()._process_emb_response(input)
+        return (np.array(emb) / np.linalg.norm(emb)).tolist()

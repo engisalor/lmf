@@ -1,11 +1,12 @@
 """Module for the `prepare` command, to prepare LLM prompts."""
 
+import gc
 import os
-import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
 import click
+import torch
 import yaml
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -30,6 +31,7 @@ class Prepare(Command):
         ctx,
         k: int,
         embeddings: embedding.EmbeddingsType,
+        model: str,
         vector_store: vector_store.VectorStoreType,
         prompt_template: prompt_template.PromptTemplateType,
     ):
@@ -37,6 +39,7 @@ class Prepare(Command):
         self.ctx = ctx
         self.k = k
         self.embeddings = embeddings
+        self.model = model
         self.vector_store = vector_store
         self.prompt_template = prompt_template
 
@@ -63,11 +66,20 @@ class Prepare(Command):
         self.inputs = YamlLoader.load_yaml("inputs", self.project_dir)
         self.examples = YamlLoader.load_yaml("examples", self.project_dir)
 
+        # clear gpu memory
+        torch.cuda.empty_cache()
+        gc.collect()
+
     def execute(self):
         "Run prompt preparation."
 
         # load embeddings
-        _embeddings = self.embeddings().get()
+        dt = {}
+        if self.run == self.runs and self.embeddings == embedding.Ollama:
+            click.echo("... adding keep_alive = 0 to last Ollama request")
+            dt = {"keep_alive": 0}
+
+        _embeddings = self.embeddings(model=self.model, **dt).get()
         self.add_dumpd("embeddings-dump", _embeddings)
         _vector_store = self.vector_store(
             embeddings=_embeddings,
@@ -88,7 +100,7 @@ class Prepare(Command):
         final_prompt = ChatPromptTemplate.from_messages(messages)
         self.add_dumpd("final_prompt-dump", final_prompt)
 
-        # # run example selector
+        # run example selector
         self.now("start")
         prompts = final_prompt.batch(self.inputs)
         self.now("stop")
@@ -98,6 +110,14 @@ class Prepare(Command):
             prompts=prompts, file=self.prompt_file.with_suffix(f".{self.run}.yml")
         )
         self.save_yaml()
+
+        # clear gpu memory
+        del _embeddings
+        del _vector_store
+        del prompt_template
+        del final_prompt
+        torch.cuda.empty_cache()
+        gc.collect()
 
 
 @click.command(
@@ -118,6 +138,12 @@ class Prepare(Command):
     help="A EmbeddingsType subclass from schema.py",
 )
 @click.option(
+    "-m",
+    "--model",
+    default="Qwen/Qwen3-Embedding-0.6B",
+    help="Name of embeddings model (download models beforehand)",
+)
+@click.option(
     "-v",
     "--vector-store",
     default="Memory",
@@ -136,6 +162,7 @@ def prepare(
     ctx,
     k: int,
     embeddings: embedding.EmbeddingsType,
+    model: str,
     vector_store: vector_store.VectorStoreType,
     prompt_template: prompt_template.PromptTemplateType,
 ):
@@ -145,6 +172,7 @@ def prepare(
         ctx=ctx,
         k=k,
         embeddings=embeddings,
+        model=model,
         vector_store=vector_store,
         prompt_template=prompt_template,
     )

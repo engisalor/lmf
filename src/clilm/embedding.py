@@ -3,8 +3,9 @@
 import os
 
 from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_ollama import OllamaEmbeddings
 
-from clilm.utils import make_custom_parameter
+from clilm.utils import OllamaEmbeddingsNormalized, make_custom_parameter
 
 ### classes for embeddings go here ###
 # these must be EmbeddingsType subclasses
@@ -25,13 +26,41 @@ class HuggingFace(EmbeddingsType):
 
     def __init__(
         self,
-        embedding_model="Qwen/Qwen3-Embedding-0.6B",
+        model="Qwen/Qwen3-Embedding-0.6B",
         encode_kwargs={"normalize_embeddings": True},
         **kwargs,
     ):
         self.embeddings = HuggingFaceEmbeddings(
-            model=embedding_model,
+            model=model,
             encode_kwargs=encode_kwargs,
+            **kwargs,
+        )
+
+
+class Ollama(EmbeddingsType):
+    """Recipe for Ollama embeddings."""
+
+    def __init__(
+        self,
+        model="qwen3-1.7b",
+        **kwargs,
+    ):
+        self.embeddings = OllamaEmbeddings(
+            model=model,
+            **kwargs,
+        )
+
+
+class OllamaNorm(EmbeddingsType):
+    """Recipe for Ollama embeddings, adding vector normalization."""
+
+    def __init__(
+        self,
+        model="qwen3-1.7b",
+        **kwargs,
+    ):
+        self.embeddings = OllamaEmbeddingsNormalized(
+            model=model,
             **kwargs,
         )
 
