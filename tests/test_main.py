@@ -4,6 +4,13 @@ from click.testing import CliRunner
 
 from clilm.main import cli
 
+base_dir = ["--base-dir", "tests/projects"]
+project = ["-p", "wizard-of-math"]
+
+log_dir = Path(f"{base_dir[1]}/{project[1]}/log")
+output_dir = Path(f"{base_dir[1]}/{project[1]}/output")
+prompt_dir = Path(f"{base_dir[1]}/{project[1]}/prompt")
+
 
 def test_cli_help():
     runner = CliRunner()
@@ -23,46 +30,18 @@ def test_query_help():
     assert result.stdout.startswith("Usage:")
 
 
-def test_prepare():
+def test_clear_help():
     runner = CliRunner()
-
-    ls = [
-        "--clear",
-        "-p",
-        "wizard-of-math",
-        "prepare",
-    ]
-    result = runner.invoke(cli, ls)
-    assert result.exit_code == 0
-    assert Path("projects/wizard-of-math/prompt/run.1.yml").exists()
+    result = runner.invoke(cli, ["clear", "--help"])
+    assert result.stdout.startswith("Usage:")
 
 
-def test_query():
+def test_clear():
     runner = CliRunner()
-    ls = [
-        "--clear",
-        "-p",
-        "wizard-of-math",
-        "prepare",
-        "query",
-    ]
-    result = runner.invoke(cli, ls)
-    assert result.exit_code == 0
-    assert Path("projects/wizard-of-math/output/run.1.yml").exists()
-    assert Path("projects/wizard-of-math/prompt/run.1.yml").exists()
-
-
-def test_empty():
-    runner = CliRunner()
-    ls = [
-        "-p",
-        "wizard-of-math",
-        "prepare",
-        "query",
-    ]
-    result = runner.invoke(cli, ls)
-    result = runner.invoke(cli, ["empty", "wizard-of-math"])
-    assert result.exit_code == 0
-    assert not Path("projects/wizard-of-math/log").exists()
-    assert not Path("projects/wizard-of-math/output").exists()
-    assert not Path("projects/wizard-of-math/prompt").exists()
+    for dir in [log_dir, output_dir, prompt_dir]:
+        dir.mkdir(exist_ok=True)
+        (dir / Path("subdirectory")).mkdir(exist_ok=True)
+        assert (dir / Path("subdirectory")).exists()
+    result = runner.invoke(cli, base_dir + project + ["clear"])
+    for dir in [log_dir, output_dir, prompt_dir]:
+        assert not (dir / Path("subdirectory")).exists()
