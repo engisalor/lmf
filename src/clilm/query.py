@@ -1,21 +1,22 @@
 """Module for the `query` command, to make LLM queries."""
 
+import gc
 import os
-import shutil
 from pathlib import Path
 
 import click
+import torch
 import yaml
 from langchain_core.runnables import Runnable
-from langchain_ollama import ChatOllama
 from pydantic import BaseModel
 from pydantic._internal._model_construction import ModelMetaclass
 
-from clilm import rate_limiter, schema
+from clilm import chat_model, rate_limiter, schema
 from clilm.command import Command
 from clilm.io import YamlLoader, prompts_from_yaml
 
 classes_dt = {
+    "Chat_models": list(chat_model.PARAMETER.types.keys()),
     "Output_structures": list(schema.PARAMETER.types.keys()),
     "Rate_limiters": list(rate_limiter.PARAMETER.types.keys()),
 }
@@ -29,18 +30,24 @@ class Query(Command):
         self,
         ctx,
         model: str,
+        chat_model: chat_model.ChatModelType,
         output_structure: BaseModel,
         sample: int,
         temperature: float,
+        timeout: int,
+        max_tokens: int,
         think: bool,
         rate_limiter: rate_limiter.RateLimiterType,
     ):
         # input parameters
         self.ctx = ctx
         self.model = model
+        self.chat_model = chat_model
         self.output_structure = output_structure
         self.sample = sample
         self.temperature = temperature
+        self.timeout = timeout
+        self.max_tokens = max_tokens
         self.think = think
         self.rate_limiter = rate_limiter
 
@@ -64,6 +71,10 @@ class Query(Command):
         self.log_file = self.log_dir / self.output_dir.name / self.file_stem
         self.chain_graph_file = self.log_dir / Path("mermaid-graph.md")
 
+        # clear gpu memory
+        torch.cuda.empty_cache()
+        gc.collect()
+
     def execute(self):
         "Run the queries."
         # load prompts
@@ -72,11 +83,13 @@ class Query(Command):
         )
 
         # define LLM
-        llm = ChatOllama(
+        llm = self.chat_model(
             model=self.model,
             temperature=self.temperature,
             rate_limiter=self.rate_limiter().get(),
-        )
+            timeout=self.timeout,
+            max_tokens=self.max_tokens,
+        ).get()
 
         # require structured output
         if getattr(self.output_structure, "to_json", None):
@@ -103,6 +116,11 @@ class Query(Command):
             self.markdown_log(llm)
         self.save_yaml()
 
+        # clear gpu memory
+        del llm
+        torch.cuda.empty_cache()
+        gc.collect()
+
     def markdown_log(self, llm: Runnable):
         """Generate a markdown log file with a Mermaid chain graph."""
         with open(self.chain_graph_file, "w") as f:
@@ -116,6 +134,12 @@ class Query(Command):
     "--model",
     default="qwen3:1.7b",
     help="Name of model (download models beforehand)",
+)
+@click.option(
+    "--chat_model",
+    default="Ollama",
+    type=chat_model.PARAMETER,
+    help="A chat model chat model class from chat.py",
 )
 @click.option(
     "-o",
@@ -133,7 +157,17 @@ class Query(Command):
     "--temperature",
     type=click.FloatRange(min=0.0, max=1.0),
     default=0.0,
-    help="Model temperature",
+    help="Model temperature (0.0 = more deterministic / 1.0 = more variable)",
+)
+@click.option(
+    "--timeout",
+    default=600,
+    help="Model response timeout (prevents long response times)",
+)
+@click.option(
+    "--max_tokens",
+    default=10000,
+    help="Model maximum tokens per response",
 )
 @click.option("--think/--no-think", default=False, help="Toggle model thinking")
 @click.option(
@@ -146,20 +180,26 @@ class Query(Command):
 def query(
     ctx,
     model: str,
+    chat_model: chat_model.ChatModelType,
     output_structure: ModelMetaclass,
     sample: int,
     temperature: float,
+    timeout: int,
+    max_tokens: int,
     think: bool,
     rate_limiter: rate_limiter.RateLimiterType,
 ):
-    """Executes LLM final prompts given a model and output structure."""
+    """Executes LLM final prompts with a model, model provider and output structure."""
 
     command = Query(
         ctx=ctx,
         model=model,
+        chat_model=chat_model,
         output_structure=output_structure,
         sample=sample,
         temperature=temperature,
+        timeout=timeout,
+        max_tokens=max_tokens,
         think=think,
         rate_limiter=rate_limiter,
     )
