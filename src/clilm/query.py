@@ -154,11 +154,6 @@ def query(
 ):
     """Executes LLM final prompts given a model and output structure."""
 
-    if ctx.obj["clear"]:
-        click.echo(f"... clearing {ctx.obj['output_dir']}")
-        shutil.rmtree(ctx.obj["output_dir"], ignore_errors=True)
-    ctx.obj["output_dir"].mkdir(exist_ok=True)
-
     command = Query(
         ctx=ctx,
         model=model,

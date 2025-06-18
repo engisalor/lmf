@@ -1,7 +1,5 @@
 """Module for utility functions."""
 
-import os
-
 import click
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
