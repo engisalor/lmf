@@ -3,7 +3,7 @@ name = "clilm"
 version = "0.1.0"
 description = "A CLI for utilizing language models with langchain"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 authors = [{name = "engisalor@github"}]
 dependencies = [
     "click>=8.2.1",
