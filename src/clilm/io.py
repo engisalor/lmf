@@ -1,6 +1,7 @@
 """Module for read/write operations."""
 
 import json
+import re
 from ast import literal_eval
 from pathlib import Path
 from typing import List
@@ -57,12 +58,13 @@ def prompts_to_yaml(prompts: List[PromptValue], file: Path | str | None):
         return out
 
 
-def prompts_from_yaml(file):
+def prompts_from_yaml(file, rstrip: str = r"\s*\(similarity_score=[\d.]+\)$"):
     with open(file, encoding="utf-8") as stream:
         ls = yaml.safe_load(stream)
     for i, prompt in enumerate(ls):
         for x, message in enumerate(prompt):
-            ls[i][x]["content"] = str(message["content"])
+            content = str(message["content"])
+            ls[i][x]["content"] = re.sub(rstrip, "", content)
 
     ls = [[message_from_dict(y) for y in x] for x in ls]
     return [ChatPromptValue(messages=x) for x in ls]
