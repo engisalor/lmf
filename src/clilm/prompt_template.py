@@ -2,7 +2,10 @@
 
 import os
 
-from langchain_core.example_selectors import SemanticSimilarityExampleSelector
+from langchain_core.example_selectors import (
+    MaxMarginalRelevanceExampleSelector,
+    SemanticSimilarityExampleSelector,
+)
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 
 from clilm.example_selector import SemanticSimilarityExampleSelectorScore
@@ -43,7 +46,7 @@ class SemanticFewShot(PromptTemplateType):
     def __init__(
         self,
         vector_store,
-        k=2,
+        k=4,
         semantic_example_selector_kwargs={},
         vectorstore_kwargs={"score_threshold": 0.0},
         **kwargs,
@@ -65,6 +68,12 @@ class SemanticFewShotScore(SemanticFewShot):
     """Dynamic semantic similarity few-shot prompt template with similarity score."""
 
     example_selector = SemanticSimilarityExampleSelectorScore
+
+
+class MmrFewShot(SemanticFewShot):
+    """Dynamic maximal marginal relevance similarity few-shot prompt template."""
+
+    example_selector = MaxMarginalRelevanceExampleSelector
 
 
 ### add new classes above this line ###

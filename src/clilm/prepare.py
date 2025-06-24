@@ -129,7 +129,7 @@ class Prepare(Command):
 )
 @click.option(
     "-k",
-    default=1,
+    default=4,
     type=click.IntRange(min=0),
     help="Number of examples for few-shot prompting (k <= len(examples); 0 = all)",
 )
