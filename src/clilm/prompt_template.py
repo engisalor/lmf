@@ -1,22 +1,25 @@
-"""Module for prompt template recipes."""
+"""Module for prompt templates."""
 
 import os
 
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 
+from clilm.example_selector import SemanticSimilarityExampleSelectorScore
 from clilm.utils import make_custom_parameter
 
-### classes for vector stores go here ###
-# these must be VectorStore subclasses
-# methods from the base class may need to be replaced
-# when using vector stores other than InMemoryVectorStore
+### classes for prompt templates go here ###
+# these must be PromptTemplateType subclasses
 
 
 class PromptTemplateType:
-    """Base class for project template recipes."""
+    """Base class for project templates."""
 
-    prompt_template: None | FewShotChatMessagePromptTemplate
+    prompt_template: FewShotChatMessagePromptTemplate
+    prompt_args = dict(
+        input_variables=["input"],
+        example_prompt=ChatPromptTemplate([("human", "{input}"), ("ai", "{output}")]),
+    )
 
     def __init__(self, **kwargs):
         pass
@@ -27,37 +30,41 @@ class PromptTemplateType:
 
 
 class NoTemplate(PromptTemplateType):
-    """Recipe for no prompt template."""
+    """No prompt template."""
 
     prompt_template = None
 
 
-class DynamicSemanticFewShot(PromptTemplateType):
-    """Recipe for dynamic, semantic-similarity-based, few-shot prompt template."""
+class SemanticFewShot(PromptTemplateType):
+    """Dynamic, semantic-similarity-based, few-shot prompt template."""
+
+    example_selector = SemanticSimilarityExampleSelector
 
     def __init__(
         self,
         vector_store,
         k=2,
         semantic_example_selector_kwargs={},
+        vectorstore_kwargs={"score_threshold": 0.0},
         **kwargs,
     ):
         semantic_example_selector_kwargs["k"] = k
-        self.example_selector = SemanticSimilarityExampleSelector(
+        example_selector = self.example_selector(
             vectorstore=vector_store,
+            vectorstore_kwargs=vectorstore_kwargs,
             **semantic_example_selector_kwargs,
         )
-        prompt_args = dict(
-            input_variables=["input"],
-            example_prompt=ChatPromptTemplate(
-                [("human", "{input}"), ("ai", "{output}")]
-            ),
-        )
-        prompt_args |= kwargs
+        prompt_args = self.prompt_args | kwargs
         self.prompt_template = FewShotChatMessagePromptTemplate(
-            example_selector=self.example_selector,
+            example_selector=example_selector,
             **prompt_args,
         )
+
+
+class SemanticFewShotScore(SemanticFewShot):
+    """Dynamic semantic similarity few-shot prompt template with similarity score."""
+
+    example_selector = SemanticSimilarityExampleSelectorScore
 
 
 ### add new classes above this line ###
@@ -65,6 +72,6 @@ name = os.path.basename(__file__)
 types = {
     k: v
     for k, v in locals().items()
-    if getattr(v, "__base__", None) == PromptTemplateType
+    if getattr(v, "__base__", None) in [PromptTemplateType, SemanticFewShot]
 }
 PARAMETER = make_custom_parameter(name, types)

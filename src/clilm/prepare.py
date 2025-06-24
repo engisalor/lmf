@@ -34,6 +34,7 @@ class Prepare(Command):
         model: str,
         vector_store: vector_store.VectorStoreType,
         prompt_template: prompt_template.PromptTemplateType,
+        threshold: float,
     ):
         # input parameters
         self.ctx = ctx
@@ -42,6 +43,7 @@ class Prepare(Command):
         self.model = model
         self.vector_store = vector_store
         self.prompt_template = prompt_template
+        self.threshold = threshold
 
         # explicit ctx
         self.base_dir: Path = ctx.obj["base_dir"]
@@ -88,6 +90,7 @@ class Prepare(Command):
         ).get()
         prompt_template = self.prompt_template(
             vector_store=_vector_store,
+            vectorstore_kwargs={"score_threshold": self.threshold},
             k=self.k,
         ).get()
 
@@ -153,9 +156,15 @@ class Prepare(Command):
 @click.option(
     "-p",
     "--prompt-template",
-    default="DynamicSemanticFewShot",
+    default="SemanticFewShot",
     type=prompt_template.PARAMETER,
     help="A prompt_template.PromptTemplateType subclass from prompt_template.py",
+)
+@click.option(
+    "--threshold",
+    default=0.0,
+    type=click.FloatRange(min=0.0, max=1.0),
+    help="Minimum similarity to include examples (w/ `-p SemanticFewShotScore`)",
 )
 @click.pass_context
 def prepare(
@@ -165,6 +174,7 @@ def prepare(
     model: str,
     vector_store: vector_store.VectorStoreType,
     prompt_template: prompt_template.PromptTemplateType,
+    threshold: float,
 ):
     """Prepares LLM final prompts from a recipe of components."""
 
@@ -175,6 +185,7 @@ def prepare(
         model=model,
         vector_store=vector_store,
         prompt_template=prompt_template,
+        threshold=threshold,
     )
     # execute runs
     for run in range(1, ctx.obj["runs"] + 1):
