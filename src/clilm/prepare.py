@@ -156,7 +156,7 @@ class Prepare(Command):
 @click.option(
     "-p",
     "--prompt-template",
-    default="SemanticFewShot",
+    default="SemanticFewShotScore",
     type=prompt_template.PARAMETER,
     help="A prompt_template.PromptTemplateType subclass from prompt_template.py",
 )
@@ -164,7 +164,7 @@ class Prepare(Command):
     "--threshold",
     default=0.0,
     type=click.FloatRange(min=0.0, max=1.0),
-    help="Minimum similarity to include examples (w/ `-p SemanticFewShotScore`)",
+    help="Minimum similarity to include examples (w/ `-p SemanticFewShot[Score]`)",
 )
 @click.pass_context
 def prepare(
