@@ -73,6 +73,7 @@ class Prepare(Command):
     def execute(self):
         "Run prompt preparation."
 
+        self.now("start")
         # load embeddings
         dt = {}
         if self.run == self.runs and self.embeddings == embedding.Ollama:
@@ -101,14 +102,13 @@ class Prepare(Command):
         self.add_dumpd("final_prompt-dump", final_prompt)
 
         # run example selector
-        self.now("start")
         prompts = final_prompt.batch(self.inputs)
-        self.now("stop")
 
         # save prompts
         prompts_to_yaml(
             prompts=prompts, file=self.prompt_file.with_suffix(f".{self.run}.yml")
         )
+        self.now("stop")
         self.save_yaml()
 
         # clear gpu memory

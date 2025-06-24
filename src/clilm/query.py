@@ -77,6 +77,7 @@ class Query(Command):
 
     def execute(self):
         "Run the queries."
+        self.now("start")
         # load prompts
         self.prompts = prompts_from_yaml(
             self.prompt_file.with_suffix(f".{self.run}.yml")
@@ -101,9 +102,7 @@ class Query(Command):
             prompts = self.prompts[: self.sample]
         else:
             prompts = self.prompts
-        self.now("start")
         responses = llm.batch(prompts, think=self.think)
-        self.now("stop")
 
         # save
         responses_json = [
@@ -114,6 +113,7 @@ class Query(Command):
         )
         if self.run == 1:
             self.markdown_log(llm)
+        self.now("stop")
         self.save_yaml()
 
         # clear gpu memory
