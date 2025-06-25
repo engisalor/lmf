@@ -4,7 +4,7 @@ import os
 
 from langchain_ollama import ChatOllama
 
-from clilm.utils import make_custom_parameter
+from lmf.utils import make_custom_parameter
 
 ### classes for chat model chat models go here ###
 # these must be ChatModelType subclasses

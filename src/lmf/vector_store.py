@@ -6,7 +6,7 @@ from typing import List
 from langchain_core.documents import Document
 from langchain_core.vectorstores import InMemoryVectorStore
 
-from clilm.utils import make_custom_parameter
+from lmf.utils import make_custom_parameter
 
 ### classes for vector stores go here ###
 # these must be VectorStore subclasses

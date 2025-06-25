@@ -10,9 +10,9 @@ import torch
 import yaml
 from langchain_core.prompts import ChatPromptTemplate
 
-from clilm import embedding, prompt_template, vector_store
-from clilm.command import Command
-from clilm.io import YamlLoader, prompts_to_yaml
+from lmf import embedding, prompt_template, vector_store
+from lmf.command import Command
+from lmf.io import YamlLoader, prompts_to_yaml
 
 classes_dt = {
     "Embeddings": list(embedding.PARAMETER.types.keys()),

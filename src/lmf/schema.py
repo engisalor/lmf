@@ -5,7 +5,7 @@ from typing import List
 
 from pydantic import BaseModel, Field
 
-from clilm.utils import make_custom_parameter
+from lmf.utils import make_custom_parameter
 
 ### classes for output structures go here ###
 # these must be BaseModel subclasses & have to_json(), __repr__() methods
@@ -13,7 +13,31 @@ from clilm.utils import make_custom_parameter
 
 
 class Unstructured(BaseModel):
-    """Recipe for unstructured chat output."""
+    """Unstructured chat output."""
+
+
+class Verb(BaseModel):
+    """A verb or token qualifies as a verb in part-of-speech labeling."""
+
+    verb: str = Field(description="An English verb as it appears in a sentence.")
+
+    def to_json(self):
+        return vars(self)
+
+    def __repr__(self):
+        return str(vars(self))
+
+
+class Verbs(BaseModel):
+    """A list of verbs in a sentence, each prepended with a number indicating its position in a sentence."""
+
+    verb_list: List[Verb]
+
+    def to_json(self):
+        return vars(self)
+
+    def __repr__(self):
+        return str(vars(self))
 
 
 class SemanticTriple(BaseModel):

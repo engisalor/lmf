@@ -2,7 +2,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from clilm.main import cli
+from lmf.main import cli
 
 base_dir = ["--base-dir", "tests/projects"]
 project = ["-p", "wizard-of-math"]

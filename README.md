@@ -1,3 +1,3 @@
-# CLILM
+# LMF
 
-A command line interface for utilizing language models with langchain.
+A CLI for the langchain language model framework.

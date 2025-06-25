@@ -9,7 +9,11 @@ from typing import List
 import yaml
 from langchain_core.prompt_values import ChatPromptValue, PromptValue
 
-from clilm.utils import message_from_dict
+from lmf.utils import message_from_dict
+
+
+def get_json(obj):
+    return json.loads(json.dumps(obj, default=lambda o: getattr(o, "__dict__", str(o))))
 
 
 class YamlLoader:
@@ -19,6 +23,11 @@ class YamlLoader:
 
     @staticmethod
     def save_yaml(data: List[dict], file, base_dir=""):
+        try:
+            data = [get_json(x) for x in data]
+        except:
+            print("... io.YamlLoader.save_yaml - could not convert objects to JSON")
+            pass
         with open(base_dir / Path(file).with_suffix(".yml"), "w") as f:
             yaml.dump(data, f, allow_unicode=True, encoding="utf-8")
 

@@ -11,9 +11,9 @@ from langchain_core.runnables import Runnable
 from pydantic import BaseModel
 from pydantic._internal._model_construction import ModelMetaclass
 
-from clilm import chat_model, rate_limiter, schema
-from clilm.command import Command
-from clilm.io import YamlLoader, prompts_from_yaml
+from lmf import chat_model, rate_limiter, schema
+from lmf.command import Command
+from lmf.io import YamlLoader, prompts_from_yaml
 
 classes_dt = {
     "Chat_models": list(chat_model.PARAMETER.types.keys()),

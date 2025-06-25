@@ -1,7 +1,7 @@
 [project]
-name = "clilm"
+name = "lmf"
 version = "0.1.0"
-description = "A CLI for utilizing language models with langchain"
+description = "A CLI for the langchain language model framework."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{name = "engisalor@github"}]
@@ -53,7 +53,7 @@ pythonpath = [
 ]
 
 [project.scripts]
-clilm = "clilm.main:cli"
+lmf = "lmf.main:cli"
 
 [project.optional-dependencies]
 extra = [

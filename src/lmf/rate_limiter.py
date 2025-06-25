@@ -4,7 +4,7 @@ import os
 
 from langchain_core.rate_limiters import InMemoryRateLimiter
 
-from clilm.utils import make_custom_parameter
+from lmf.utils import make_custom_parameter
 
 
 class RateLimiterType:

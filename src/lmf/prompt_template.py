@@ -8,8 +8,8 @@ from langchain_core.example_selectors import (
 )
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 
-from clilm.example_selector import SemanticSimilarityExampleSelectorScore
-from clilm.utils import make_custom_parameter
+from lmf.example_selector import SemanticSimilarityExampleSelectorScore
+from lmf.utils import make_custom_parameter
 
 ### classes for prompt templates go here ###
 # these must be PromptTemplateType subclasses

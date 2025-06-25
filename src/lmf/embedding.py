@@ -5,7 +5,7 @@ import os
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_ollama import OllamaEmbeddings
 
-from clilm.utils import OllamaEmbeddingsNormalized, make_custom_parameter
+from lmf.utils import OllamaEmbeddingsNormalized, make_custom_parameter
 
 ### classes for embeddings go here ###
 # these must be EmbeddingsType subclasses
