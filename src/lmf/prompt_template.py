@@ -38,6 +38,12 @@ class NoTemplate(PromptTemplateType):
     prompt_template = None
 
 
+class RandomFewShot(PromptTemplateType):
+    """Random few shot prompt template (randomization implemented in main.py)."""
+
+    prompt_template = None
+
+
 class SemanticFewShot(PromptTemplateType):
     """Dynamic, semantic-similarity-based, few-shot prompt template."""
 

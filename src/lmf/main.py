@@ -1,5 +1,6 @@
 """CLI entrypoint."""
 
+import random
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -48,6 +49,12 @@ from lmf.query import query
     default=False,
     help="Use local LLM cache (existing cache is deleted if False)",
 )
+@click.option(
+    "--seed",
+    default=0,
+    type=click.IntRange(min=0),
+    help="Randomization seed (0 == None; a positive integer sets the seed)",
+)
 @click.pass_context
 def cli(
     ctx,
@@ -57,6 +64,7 @@ def cli(
     file_stem: str | Path,
     debug: bool,
     cache: bool,
+    seed: int,
 ):
     """A CLI for running language models with langchain."""
     if project:
@@ -75,6 +83,10 @@ def cli(
         log_dir = project_dir / Path("log")
         prompt_dir = project_dir / Path("prompt")
         output_dir = project_dir / Path("output")
+        if not seed:
+            seed = None
+        random.seed(seed)
+        print(f"... seed = {seed}")
 
         # ctx
         ctx.ensure_object(dict)
@@ -86,6 +98,7 @@ def cli(
         ctx.obj["runs"] = runs
         ctx.obj["date"] = datetime.now().isoformat(timespec="seconds")
         ctx.obj["file_stem"] = Path(file_stem)
+        ctx.obj["seed"] = seed
 
         # check project path
         if not project_dir.exists():

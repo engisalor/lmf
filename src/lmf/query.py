@@ -60,6 +60,7 @@ class Query(Command):
         self.runs: int = ctx.obj["runs"]
         self.date: str = ctx.obj["date"]
         self.file_stem: Path = ctx.obj["file_stem"]
+        self.seed: str = ctx.obj["seed"]
 
         # other parameters
         self.script = os.path.basename(__file__)

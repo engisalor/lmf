@@ -10,7 +10,7 @@ import torch
 import yaml
 from langchain_core.prompts import ChatPromptTemplate
 
-from lmf import embedding, prompt_template, vector_store
+from lmf import embedding, example_selector, prompt_template, vector_store
 from lmf.command import Command
 from lmf.io import YamlLoader, prompts_to_yaml
 
@@ -54,6 +54,7 @@ class Prepare(Command):
         self.file_stem: Path = ctx.obj["file_stem"]
         self.runs: int = ctx.obj["runs"]
         self.date: str = ctx.obj["date"]
+        self.seed: str = ctx.obj["seed"]
 
         # other parameters
         self.script = os.path.basename(__file__)
@@ -100,6 +101,9 @@ class Prepare(Command):
             messages.append(("system", self.system))
         if prompt_template:
             messages.append(prompt_template)
+        if self.prompt_template.__name__ == "RandomFewShot":
+            examples = example_selector.select_random_samples(self.examples, self.k)
+            messages.extend(examples)
         messages.append(("human", "{input}"))
         final_prompt = ChatPromptTemplate.from_messages(messages)
         self.add_dumpd("final_prompt-dump", final_prompt)

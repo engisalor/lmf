@@ -1,5 +1,14 @@
+import random
+
 from langchain_core.documents import Document
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
+
+
+def select_random_samples(examples: list[dict], k: int):
+    examples = random.sample(examples, k)
+    examples = [[("human", x["input"]), ("ai", x["output"])] for x in examples]
+    examples = [y for x in examples for y in x]
+    return examples
 
 
 class SemanticSimilarityExampleSelectorScore(SemanticSimilarityExampleSelector):
