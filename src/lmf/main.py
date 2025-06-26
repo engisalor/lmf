@@ -6,12 +6,15 @@ from datetime import datetime
 from pathlib import Path
 
 import click
+from dotenv import load_dotenv
 from langchain.globals import set_debug
 from langchain_community.cache import SQLiteCache
 from langchain_core.globals import set_llm_cache
 
 from lmf.prepare import prepare
 from lmf.query import query
+
+load_dotenv()
 
 
 @click.group(
