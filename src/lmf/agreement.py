@@ -62,13 +62,14 @@ class PairwiseAgreement:
             ["annotator", "from_id", "to_id", "index", "type"], inplace=True
         )
         # add to and from columns
-        column_map_from = {
+        columns_preserve = {"annotator": "annotator", "index": "index"}
+        column_map_from = columns_preserve | {
             "id": "from_id",
             "start_offset": "from_start_offset",
             "end_offset": "from_end_offset",
             "span": "from_span",
         }
-        column_map_to = {
+        column_map_to = columns_preserve | {
             "id": "to_id",
             "start_offset": "to_start_offset",
             "end_offset": "to_end_offset",
@@ -77,27 +78,22 @@ class PairwiseAgreement:
         df[["rel_id", "from_id", "to_id"]] = (
             df[["rel_id", "from_id", "to_id"]].fillna(-1).astype("int64")
         )
-        tmp_from_id = pd.merge(
-            df[df["from_id"] != -1],
+        df = pd.merge(
+            df,
             self.entity.rename(column_map_from, axis=1)[
                 [x for x in column_map_from.values()]
             ],
-            on="from_id",
+            on=["from_id", "index", "annotator"],
             how="left",
         )
-        df = pd.concat([tmp_from_id, df[df["from_id"] == -1]])
-        tmp_to_id = pd.merge(
-            df[df["to_id"] != -1],
+        df = pd.merge(
+            df,
             self.entity.rename(column_map_to, axis=1)[
                 [x for x in column_map_to.values()]
             ],
-            on="to_id",
+            on=["to_id", "index", "annotator"],
             how="left",
         )
-        df = pd.concat([tmp_to_id, df[df["to_id"] == -1]])
-        # NOTE dropping duplicates is necessary if annotations have exact same ids across annotators
-        # improving the above merge operations could obviate patch below
-        df.drop_duplicates(inplace=True)
         # strip strings in case a span includes whitespace
         df[["type", "from_span", "to_span"]] = (
             df[["type", "from_span", "to_span"]]
@@ -146,10 +142,8 @@ class PairwiseAgreement:
             if x not in set([y for df in pairs for y in df[id_col]])
         ]
         for s in solitary:
-            print("GROUP", "\n", group)
             # _df1 is the solitary annotation
             _df1 = group[group[id_col] == s].copy()
-            print("SOLITARY", "s", "DF1\n", _df1)
             if not _df1.empty:
                 solitary_annotator = _df1.iloc[0]["annotator"]
                 # _df2 is the new row to match with the solitary annotation
@@ -187,62 +181,50 @@ class PairwiseAgreement:
                 self.relation_match = pd.concat(relation_match)
         # debug: always process entities
         if debug:
-            for x, document in self.entity.groupby("index"):
+            for x, text in self.entity.groupby("index"):
                 print("\nENTITY", x)
-                print(document)
-                self.entity_match.append(self._match(document))
+                print(text)
+                self.entity_match.append(self._match(text))
             self.entity_match = pd.concat(self.entity_match)
         # debug: process relation if any
         if debug and not self.relation.empty:
-            for x, document in self.relation.groupby("index"):
+            for x, text in self.relation.groupby("index"):
                 print("\nRELATION", x)
-                print(document)
-                self.relation_match.append(self._match(document))
+                print(text)
+                self.relation_match.append(self._match(text))
             self.relation_match = pd.concat(self.relation_match)
             self.relation_match.reset_index(drop=True, inplace=True)
 
         self.entity_match.reset_index(drop=True, inplace=True)
 
     def _match(self, groupby_tuple) -> pd.DataFrame:
-        _, document = groupby_tuple
-        document: pd.DataFrame
+        _, text = groupby_tuple
+        text: pd.DataFrame
         pairs = []
-        hashes = set()
         id_col = "id"
-        if "rel_id" in document.columns:
+        if "rel_id" in text.columns:
             id_col = "rel_id"
-        for x, y in itertools.combinations(document.index, 2):
-            df = document.loc[[x, y]].copy(deep=True)
+        for x, y in itertools.combinations(text.index, 2):
+            df = text.loc[[x, y]].copy(deep=True)
             df.drop_duplicates(inplace=True)
             df.sort_values([id_col], inplace=True)
             df.reset_index(drop=True, inplace=True)
             _bytes = bytes(
                 json.dumps(df.to_dict("records"), sort_keys=True), encoding="utf-8"
             )
-            _hash = blake2b(_bytes).hexdigest()[:32]
             df["hash"] = blake2b(_bytes).hexdigest()[:32]
-            if x == y and _hash not in hashes:
+            # full match: both indexes
+            if x == y:
                 pairs.append(df)
-                hashes.add(_hash)
-            elif (
-                id_col == "id"
-                and x.overlaps(y)
-                and not df["annotator"].duplicated().any()
-                and _hash not in hashes
-            ):
-                pairs.append(df)
-                hashes.add(_hash)
-            elif (
-                id_col == "rel_id"
-                and x[0].overlaps(y[0])
-                and x[1].overlaps(y[1])
-                and not df["annotator"].duplicated().any()
-                and _hash not in hashes
-            ):
-                pairs.append(df)
-                hashes.add(_hash)
+            elif not df["annotator"].duplicated().any():
+                # overlapping match entities
+                if id_col == "id" and x.overlaps(y):
+                    pairs.append(df)
+                # overlapping match relations
+                elif id_col == "rel_id" and x[0].overlaps(y[0]) and x[1].overlaps(y[1]):
+                    pairs.append(df)
 
-        ls_all = self._add_solitary_annotations(document, pairs, id_col)
+        ls_all = self._add_solitary_annotations(text, pairs, id_col)
         df_all = pd.concat([x for x in ls_all if not x.empty])
         df_all.reset_index(inplace=True, drop=True)
         df_all.sort_values(["hash", "annotator"], inplace=True)
@@ -355,20 +337,21 @@ class PairwiseAgreement:
         # whole dataset overlap
         for df in dfs:
             self._agreement(df, measurement="overlap")
-        # by document exact entity
+        # by text exact entity
         for index, df in self.entity_match.groupby("index"):
             self._agreement(df, measurement="exact", by_text=True, index=index)
-        # by document overlap entity
+        # by text overlap entity
         for index, df in self.entity_match.groupby("index"):
             self._agreement(df, measurement="overlap", by_text=True, index=index)
 
         if not self.relation.empty:
-            # by document exact relation
+            # by text exact relation
             for index, df in self.relation_match.groupby("index"):
                 self._agreement(df, measurement="exact", by_text=True, index=index)
-            # by document overlap relation
+            # by text overlap relation
             for index, df in self.relation_match.groupby("index"):
                 self._agreement(df, measurement="overlap", by_text=True, index=index)
+            self.relation_match.reset_index(drop=True, inplace=True)
 
         # reset indexes
         self.entity_agreement.reset_index(drop=True, inplace=True)
