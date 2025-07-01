@@ -6,6 +6,7 @@ from multiprocessing import Pool
 from pathlib import Path
 from typing import List
 
+import click
 import pandas as pd
 from sklearn.metrics import (
     classification_report,
@@ -440,7 +441,7 @@ class PairwiseAgreement:
         self.metrics = metrics
         for i, file in enumerate(self.files):
             df = pd.read_json(file, lines=True)
-            df["annotator"] = file.stem
+            df["annotator"] = file.name.rstrip(".jsonl")
             source.append(df)
 
         self.source = pd.concat(source)
@@ -462,10 +463,47 @@ class PairwiseAgreement:
 class PairwiseAgreementMany:
     pair: List[PairwiseAgreement]
 
-    def __init__(self, directory, run_match):
+    def agreement_dfs(self):
+        self.entity_agreement = pd.concat([x.entity_agreement for x in self.pair])
+        self.relation_agreement = pd.concat([x.relation_agreement for x in self.pair])
+        self.entity_agreement.reset_index(drop=True)
+        self.relation_agreement.reset_index(drop=True)
+
+    def __init__(self, directory: str, run_match: bool = True):
         self.files = [x for x in Path(directory).glob("*.jsonl")]
         self.pair = []
+        self.entity_agreement = pd.DataFrame()
+        self.relation_agreement = pd.DataFrame()
         for file_x, file_y in itertools.combinations(self.files, 2):
             print(f"... {file_x.name} - {file_y.name}")
             pair = PairwiseAgreement(file_x, file_y, run_match)
             self.pair.append(pair)
+
+        self.agreement_dfs()
+
+
+@click.command(
+    context_settings={"show_default": True},
+)
+@click.argument(
+    "directory", nargs=-1, type=click.Path(exists=True, file_okay=False, dir_okay=True)
+)
+@click.option(
+    "--run/--no-run",
+    default=True,
+    help="Detect matches and calculate agreement (only instantiates obj if False)",
+)
+def agree(directory: str, run: bool):
+    for d in directory:
+        msg = f"... calculating agreement for JSONL files in {d}"
+        click.echo(msg)
+        pam = PairwiseAgreementMany(directory=d, run_match=run)
+        pam.agreement_dfs()
+        click.echo("\nENTITY AGREEMENT")
+        click.echo(pam.entity_agreement)
+        click.echo("\nRELATION AGREEMENT")
+        click.echo(pam.relation_agreement)
+
+
+if __name__ == "__main__":
+    agree()

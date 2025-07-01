@@ -54,6 +54,7 @@ pythonpath = [
 
 [project.scripts]
 lmf = "lmf.main:cli"
+agree = "lmf.agreement:agree"
 
 [project.optional-dependencies]
 extra = [
