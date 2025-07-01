@@ -1,0 +1,29 @@
+i	precision	recall	f1-score	support	annotation	measurement	index
+a111 = a1	1.0	1.0	1.0	1.0	entity	exact	0
+b222 = b2	1.0	1.0	1.0	1.0	entity	exact	0
+d444 = c3	1.0	1.0	1.0	1.0	entity	exact	0
+e555 = d4	1.0	1.0	1.0	1.0	entity	exact	0
+accuracy	1.0	1.0	1.0	1.0	entity	exact	0
+macro avg	1.0	1.0	1.0	4.0	entity	exact	0
+weighted avg	1.0	1.0	1.0	4.0	entity	exact	0
+a111 = a1	1.0	1.0	1.0	1.0	entity	exact	1
+b222 = b2	1.0	1.0	1.0	1.0	entity	exact	1
+d444 = c3	1.0	1.0	1.0	1.0	entity	exact	1
+e555 = d4	1.0	1.0	1.0	1.0	entity	exact	1
+accuracy	1.0	1.0	1.0	1.0	entity	exact	1
+macro avg	1.0	1.0	1.0	4.0	entity	exact	1
+weighted avg	1.0	1.0	1.0	4.0	entity	exact	1
+a1	1.0	1.0	1.0	1.0	entity	overlap	0
+b2	1.0	1.0	1.0	1.0	entity	overlap	0
+c3	1.0	1.0	1.0	1.0	entity	overlap	0
+d4	1.0	1.0	1.0	1.0	entity	overlap	0
+accuracy	1.0	1.0	1.0	1.0	entity	overlap	0
+macro avg	1.0	1.0	1.0	4.0	entity	overlap	0
+weighted avg	1.0	1.0	1.0	4.0	entity	overlap	0
+a1	1.0	1.0	1.0	1.0	entity	overlap	1
+b2	1.0	1.0	1.0	1.0	entity	overlap	1
+c3	1.0	1.0	1.0	1.0	entity	overlap	1
+d4	1.0	1.0	1.0	1.0	entity	overlap	1
+accuracy	1.0	1.0	1.0	1.0	entity	overlap	1
+macro avg	1.0	1.0	1.0	4.0	entity	overlap	1
+weighted avg	1.0	1.0	1.0	4.0	entity	overlap	1

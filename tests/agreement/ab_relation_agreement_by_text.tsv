@@ -1,0 +1,5 @@
+metric	score	annotators	annotation	measurement	support	index
+f1_score	1.0	a|b	relation	exact	4	0
+f1_score	1.0	a|b	relation	exact	4	1
+f1_score	1.0	a|b	relation	overlap	4	0
+f1_score	1.0	a|b	relation	overlap	4	1

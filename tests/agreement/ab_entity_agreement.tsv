@@ -1,0 +1,3 @@
+metric	score	annotators	annotation	measurement	support
+f1_score	1.0	a|b	entity	exact	16
+f1_score	1.0	a|b	entity	overlap	16

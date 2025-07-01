@@ -2,6 +2,7 @@
 
 import click
 import numpy as np
+import pandas as pd
 from langchain_community.embeddings import OllamaEmbeddings
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
@@ -54,3 +55,9 @@ class OllamaEmbeddingsNormalized(OllamaEmbeddings):
     def _process_emb_response(self, input: str) -> list[float]:
         emb = super()._process_emb_response(input)
         return (np.array(emb) / np.linalg.norm(emb)).tolist()
+
+
+def str_to_interval(s):
+    """Returns a pandas Interval object from its string representation."""
+    ls = [int(x) for x in s.strip("(]").split(", ")]
+    return pd.Interval(*ls)

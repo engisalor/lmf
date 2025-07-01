@@ -1,0 +1,9 @@
+interval_index	rel_id	from_id	to_id	type	index	annotator	text_id	from_span	to_span
+(15, 20]	(20, 25]	34	3	4	relation_b	0	a	0	d444	e555
+(15, 20]	(20, 25]	34	3	4	relation_b	1	a	0	d444	e555
+(15, 20]	(20, 25]	34	3	4	relation_b	0	b	0	d444	e555
+(15, 20]	(20, 25]	34	3	4	relation_b	1	b	0	d444	e555
+(5, 10]	(0, 5]	12	2	1	new_relation	0	a	0	b222	a111
+(5, 10]	(0, 5]	12	2	1	new_relation	1	a	0	b222	a111
+(5, 10]	(0, 5]	12	2	1	new_relation	0	b	0	b222	a111
+(5, 10]	(0, 5]	12	2	1	new_relation	1	b	0	b222	a111

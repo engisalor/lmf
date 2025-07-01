@@ -1,0 +1,21 @@
+i	precision	recall	f1-score	support	annotation	measurement	index
+a111 -> relation_a -> b222	1.0	1.0	1.0	1.0	relation	exact	0
+d444 -> relation_b -> e555	1.0	1.0	1.0	1.0	relation	exact	0
+accuracy	1.0	1.0	1.0	1.0	relation	exact	0
+macro avg	1.0	1.0	1.0	2.0	relation	exact	0
+weighted avg	1.0	1.0	1.0	2.0	relation	exact	0
+a111 -> relation_a -> b222	1.0	1.0	1.0	1.0	relation	exact	1
+d444 -> relation_b -> e555	1.0	1.0	1.0	1.0	relation	exact	1
+accuracy	1.0	1.0	1.0	1.0	relation	exact	1
+macro avg	1.0	1.0	1.0	2.0	relation	exact	1
+weighted avg	1.0	1.0	1.0	2.0	relation	exact	1
+relation_a	1.0	1.0	1.0	1.0	relation	overlap	0
+relation_b	1.0	1.0	1.0	1.0	relation	overlap	0
+accuracy	1.0	1.0	1.0	1.0	relation	overlap	0
+macro avg	1.0	1.0	1.0	2.0	relation	overlap	0
+weighted avg	1.0	1.0	1.0	2.0	relation	overlap	0
+relation_a	1.0	1.0	1.0	1.0	relation	overlap	1
+relation_b	1.0	1.0	1.0	1.0	relation	overlap	1
+accuracy	1.0	1.0	1.0	1.0	relation	overlap	1
+macro avg	1.0	1.0	1.0	2.0	relation	overlap	1
+weighted avg	1.0	1.0	1.0	2.0	relation	overlap	1

@@ -1,0 +1,9 @@
+rel_id	from_id	to_id	type	index	annotator	text_id	from_span	to_span	hash
+12	1	2	relation_a	0	a	0	a111	b222	20800d00fea5d109d7abc625060a6c51
+12	1	2	relation_a	0	b	0	a111	b222	20800d00fea5d109d7abc625060a6c51
+34	3	4	relation_b	0	a	0	d444	e555	4f0f6c12eb6d4f7175199bce6c46114c
+34	3	4	relation_b	0	b	0	d444	e555	4f0f6c12eb6d4f7175199bce6c46114c
+34	3	4	relation_b	1	a	0	d444	e555	1f30f922bb001072db3c6084907b1d68
+34	3	4	relation_b	1	b	0	d444	e555	1f30f922bb001072db3c6084907b1d68
+12	1	2	relation_a	1	a	0	a111	b222	aac312900972e0673e047c7783c80f8a
+12	1	2	relation_a	1	b	0	a111	b222	aac312900972e0673e047c7783c80f8a
