@@ -12,6 +12,7 @@ dependencies = [
     "langchain-huggingface>=0.3.0",
     "langchain-ollama>=0.3.3",
     "ollama>=0.5.1",
+    "pandas>=2.3.0",
     "sentence-transformers>=4.1.0",
 ]
 
@@ -57,6 +58,4 @@ lmf = "lmf.main:cli"
 agree = "lmf.agreement:agree"
 
 [project.optional-dependencies]
-extra = [
-    "sgex>=0.7.5",
-]
+extra = []
