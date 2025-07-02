@@ -17,7 +17,12 @@ test_dir = Path("tests/agreement_many")
 
 @pytest.fixture
 def pam() -> PairwiseAgreementMany:
-    return PairwiseAgreementMany(test_dir)
+    return PairwiseAgreementMany(
+        test_dir,
+        metrics=[
+            ("f1_score", {"average": "micro"}),
+        ],
+    )
 
 
 def test_whole_directory(pam: PairwiseAgreementMany):

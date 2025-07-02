@@ -13,12 +13,18 @@ f = test_dir / Path("f.jsonl")
 ef_entity_agreement_by_text = test_dir / Path("ef_entity_agreement_by_text.tsv")
 ef_relation_agreement_by_text = test_dir / Path("ef_relation_agreement_by_text.tsv")
 
-# x = PairwiseAgreement(e, f)
+# x = PairwiseAgreement(e, f, metrics=[("f1_score", {"average": "micro"})])
 
 
 @pytest.fixture
 def pa() -> PairwiseAgreement:
-    return PairwiseAgreement(e, f)
+    return PairwiseAgreement(
+        e,
+        f,
+        metrics=[
+            ("f1_score", {"average": "micro"}),
+        ],
+    )
 
 
 @pytest.fixture

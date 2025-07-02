@@ -28,7 +28,13 @@ ab_relation_flip = test_dir / Path("ab_relation_flip.tsv")
 
 @pytest.fixture
 def pa() -> PairwiseAgreement:
-    return PairwiseAgreement(a, b)
+    return PairwiseAgreement(
+        a,
+        b,
+        metrics=[
+            ("f1_score", {"average": "micro"}),
+        ],
+    )
 
 
 def save_dataframes(x):
@@ -56,7 +62,7 @@ def save_dataframes(x):
     )
 
 
-# x = PairwiseAgreement(a, b)
+# x = PairwiseAgreement(a, b, metrics=[("f1_score", {"average": "micro"})])
 # save_dataframes(x)
 
 
@@ -130,7 +136,13 @@ def test_relation_flip_dataframe(pa: PairwiseAgreement):
 def test_no_relations():
     c = test_dir / Path("c.jsonl")
     d = test_dir / Path("d.jsonl")
-    pa = PairwiseAgreement(c, d)
+    pa = PairwiseAgreement(
+        c,
+        d,
+        metrics=[
+            ("f1_score", {"average": "micro"}),
+        ],
+    )
     assert pa.relation.empty
     assert pa.relation_match == []
     assert pa.relation_agreement.empty
