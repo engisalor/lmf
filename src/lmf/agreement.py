@@ -1,6 +1,8 @@
 import itertools
 import json
+import shutil
 from collections.abc import Callable
+from datetime import datetime
 from hashlib import blake2b
 from multiprocessing import Pool
 from pathlib import Path
@@ -8,12 +10,7 @@ from typing import List
 
 import click
 import pandas as pd
-from sklearn.metrics import (
-    classification_report,
-    cohen_kappa_score,
-    f1_score,
-    matthews_corrcoef,
-)
+import sklearn
 
 
 class PairwiseAgreement:
@@ -237,7 +234,6 @@ class PairwiseAgreement:
         measurement: str,
         by_text: bool = False,
         index: str = None,
-        report=True,
     ):
         # set parameters
         msg = f"neither 'rel_id' nor 'id' are in df.columns: {df.columns}"
@@ -308,10 +304,9 @@ class PairwiseAgreement:
 
         setattr(self, store, pd.concat([getattr(self, store), out]))
 
-        # f1 classification report
-        if report:
+        if self.f1_classification_report:
             report_store = f"{store}_report"
-            report = classification_report(
+            report = sklearn.metrics.classification_report(
                 X,
                 Y,
                 output_dict=True,
@@ -417,31 +412,49 @@ class PairwiseAgreement:
         self.relation_agreement_report = pd.DataFrame()
         self.relation_agreement_by_text_report = pd.DataFrame()
 
+    def save(self):
+        names = Path("--".join(self.annotators))
+        self.save_dir = self.files[0].parents[0] / Path("annotator-agreement/")
+        dataframes = [
+            (k, v) for k, v in self.__dict__.items() if isinstance(v, pd.DataFrame)
+        ]
+        dataframes = [
+            (self.save_dir / names / Path(x[0]).with_suffix(".tsv"), x[1])
+            for x in dataframes
+        ]
+        print(f"... saving dataframes")
+        dataframes[0][0].parents[0].mkdir(exist_ok=True, parents=True)
+        for file, df in dataframes:
+            if not df.empty:
+                df.to_csv(file, sep="\t", index=True)
+
     def __repr__(self):
         return f"PairwiseAgreement obj: {len(self.entity)} entitites; {len(self.entity)} relations; {[x.name for x in self.files]}"
 
     def __init__(
         self,
-        file_x,
-        file_y,
-        run_match=True,
+        file_x: str,
+        file_y: str,
+        run_match: bool = True,
         metrics: List[tuple[Callable, dict]] = [
-            (f1_score, {"average": "micro"}),
-            # (matthews_corrcoef,{}),
-            # (cssohen_kappa_score,{})
+            ("f1_score", {"average": "micro"}),
+            ("matthews_corrcoef", {}),
         ],
+        f1_classification_report: bool = True,
+        save: bool = False,
     ):
-        # create empty dataframes
+        self.f1_classification_report = f1_classification_report
         source = []
         self.entity_match = []
         self.relation_match = []
         self.reset()
         # load data
         self.files = [Path(x) for x in [file_x, file_y]]
-        self.metrics = metrics
+        self.metrics = [(getattr(sklearn.metrics, x[0]), x[1]) for x in metrics]
+        self.annotators = [file.with_suffix("").name for file in self.files]
         for i, file in enumerate(self.files):
             df = pd.read_json(file, lines=True)
-            df["annotator"] = file.name.rstrip(".jsonl")
+            df["annotator"] = file.with_suffix("").name
             source.append(df)
 
         self.source = pd.concat(source)
@@ -459,6 +472,9 @@ class PairwiseAgreement:
             self.match()
             self.agreement()
 
+        if save:
+            self.save()
+
 
 class PairwiseAgreementMany:
     pair: List[PairwiseAgreement]
@@ -469,17 +485,73 @@ class PairwiseAgreementMany:
         self.entity_agreement.reset_index(drop=True)
         self.relation_agreement.reset_index(drop=True)
 
-    def __init__(self, directory: str, run_match: bool = True):
+    def final_score(self):
+        records = []
+        names = "|".join([file.with_suffix("").name for file in self.files])
+        for group in self.entity_agreement.groupby(["metric", "measurement"]):
+            metric, measurement = group[0]
+            df = group[1]
+            dt = dict(
+                metric=metric,
+                measurement=measurement,
+                mean=df["score"].mean(),
+                support_sum=df["support"].sum(),
+                support_mean=df["support"].mean(),
+                n_annotators=len(self.files),
+                annotators=names,
+                date=datetime.now().isoformat(timespec="seconds"),
+            )
+            records.append(dt)
+        self.average_pairwise_score = pd.DataFrame.from_records(records)
+
+    def save(self):
+        dataframes = [
+            (k, v) for k, v in self.__dict__.items() if isinstance(v, pd.DataFrame)
+        ]
+        dataframes = [
+            (self.save_dir / Path(x[0]).with_suffix(".tsv"), x[1]) for x in dataframes
+        ]
+        print(f"... saving PAM dataframes")
+        dataframes[0][0].parents[0].mkdir(exist_ok=True, parents=True)
+        for file, df in dataframes:
+            if not df.empty:
+                df.to_csv(file, sep="\t", index=True)
+
+    def __init__(
+        self,
+        directory: str,
+        run_match: bool = True,
+        save=False,
+        f1_classification_report: bool = True,
+        metrics: List[tuple[Callable, dict]] = [
+            ("f1_score", {"average": "micro"}),
+            ("matthews_corrcoef", {}),
+        ],
+    ):
+        self.directory = directory
+        self.save_dir = Path(self.directory) / Path("annotator-agreement/")
         self.files = [x for x in Path(directory).glob("*.jsonl")]
         self.pair = []
         self.entity_agreement = pd.DataFrame()
         self.relation_agreement = pd.DataFrame()
+        if save:
+            print(f"... clearing {self.save_dir}")
+            shutil.rmtree(self.save_dir, ignore_errors=True)
         for file_x, file_y in itertools.combinations(self.files, 2):
             print(f"... {file_x.name} - {file_y.name}")
-            pair = PairwiseAgreement(file_x, file_y, run_match)
+            pair = PairwiseAgreement(
+                file_x,
+                file_y,
+                run_match=run_match,
+                metrics=metrics,
+                save=save,
+                f1_classification_report=f1_classification_report,
+            )
             self.pair.append(pair)
-
         self.agreement_dfs()
+        self.final_score()
+        if save:
+            self.save()
 
 
 @click.command(
@@ -493,16 +565,27 @@ class PairwiseAgreementMany:
     default=True,
     help="Detect matches and calculate agreement (only instantiates obj if False)",
 )
-def agree(directory: str, run: bool):
+@click.option(
+    "--save/--no-save",
+    default=False,
+    help="Save analysis results to `./agreement/`",
+)
+@click.option(
+    "--f1-report/--no-f1-report",
+    default=False,
+    help="Produce f1 classification reports for each annotator pair / text",
+)
+def agree(directory: str, run: bool, save: bool, f1_report):
+    """Calculates f1 and matthews_corrcoef pairwise agreement from JSONL annotations"""
     for d in directory:
         msg = f"... calculating agreement for JSONL files in {d}"
         click.echo(msg)
-        pam = PairwiseAgreementMany(directory=d, run_match=run)
+        pam = PairwiseAgreementMany(
+            directory=d, run_match=run, save=save, f1_classification_report=f1_report
+        )
         pam.agreement_dfs()
-        click.echo("\nENTITY AGREEMENT")
-        click.echo(pam.entity_agreement)
-        click.echo("\nRELATION AGREEMENT")
-        click.echo(pam.relation_agreement)
+        click.echo(f"\nAverage pairwise score: {d}")
+        click.echo(pam.average_pairwise_score)
 
 
 if __name__ == "__main__":

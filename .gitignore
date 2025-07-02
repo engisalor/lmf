@@ -21,6 +21,6 @@ local
 log/
 prompt/
 output/
-
+annotator-agreement/
 projects/*
 !projects/wizard-of-math
