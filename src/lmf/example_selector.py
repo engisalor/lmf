@@ -4,16 +4,29 @@ from langchain_core.documents import Document
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
 
 
-def select_random_samples(examples: list[dict], k: int):
-    examples = random.sample(examples, k)
-    examples = [[("human", x["input"]), ("ai", x["output"])] for x in examples]
-    examples = [y for x in examples for y in x]
-    return examples
+class RandomExampleSelector(SemanticSimilarityExampleSelector):
+    """Class for random selection with a memory vector store (others untested)."""
+
+    def _documents_to_examples(self, documents: list[Document]) -> list[dict]:
+        """Gets a random sample of input:output examples from 'metadata' keys."""
+        examples = [dict(e["metadata"]) for e in documents]
+        examples = random.sample(examples, self.k)
+        if self.example_keys:
+            examples = [{k: eg[k] for k in self.example_keys} for eg in examples]
+        return examples
+
+    def select_examples(self, *args, **kwargs) -> list[dict]:
+        """Gets all store documents, then selects a random sample."""
+        example_docs = self.vectorstore.store.values()
+        return self._documents_to_examples(example_docs)
 
 
 class SemanticSimilarityExampleSelectorScore(SemanticSimilarityExampleSelector):
     def _documents_to_examples(self, documents: list[Document]) -> list[dict]:
-        """Appends scores to example output."""
+        """Appends scores to example output.
+
+        Warning: converts example to strings if objects, requires fixing.
+        """
         examples = [dict(e[0].metadata) for e in documents]
         for i in range(len(examples)):
             examples[i]["output"] += f" (similarity_score={documents[i][1]:.3})"

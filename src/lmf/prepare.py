@@ -101,9 +101,6 @@ class Prepare(Command):
             messages.append(("system", self.system))
         if prompt_template:
             messages.append(prompt_template)
-        if self.prompt_template.__name__ == "RandomFewShot":
-            examples = example_selector.select_random_samples(self.examples, self.k)
-            messages.extend(examples)
         messages.append(("human", "{input}"))
         final_prompt = ChatPromptTemplate.from_messages(messages)
         self.add_dumpd("final_prompt-dump", final_prompt)
@@ -160,7 +157,7 @@ class Prepare(Command):
 @click.option(
     "-p",
     "--prompt-template",
-    default="SemanticFewShotScore",
+    default="SemanticFewShot",
     type=prompt_template.PARAMETER,
     help="A prompt_template.PromptTemplateType subclass from prompt_template.py",
 )

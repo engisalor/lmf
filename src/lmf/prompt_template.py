@@ -8,7 +8,10 @@ from langchain_core.example_selectors import (
 )
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 
-from lmf.example_selector import SemanticSimilarityExampleSelectorScore
+from lmf.example_selector import (
+    RandomExampleSelector,
+    SemanticSimilarityExampleSelectorScore,
+)
 from lmf.utils import make_custom_parameter
 
 ### classes for prompt templates go here ###
@@ -34,12 +37,6 @@ class PromptTemplateType:
 
 class NoTemplate(PromptTemplateType):
     """No prompt template."""
-
-    prompt_template = None
-
-
-class RandomFewShot(PromptTemplateType):
-    """Random few shot prompt template (randomization implemented in main.py)."""
 
     prompt_template = None
 
@@ -80,6 +77,12 @@ class MmrFewShot(SemanticFewShot):
     """Dynamic maximal marginal relevance similarity few-shot prompt template."""
 
     example_selector = MaxMarginalRelevanceExampleSelector
+
+
+class RandomFewShot(SemanticFewShot):
+    """Random few shot prompt template."""
+
+    example_selector = RandomExampleSelector
 
 
 ### add new classes above this line ###
