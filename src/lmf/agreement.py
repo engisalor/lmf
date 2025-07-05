@@ -488,20 +488,26 @@ class PairwiseAgreementMany:
     def final_score(self):
         records = []
         names = "|".join([file.with_suffix("").name for file in self.files])
-        for group in self.entity_agreement.groupby(["metric", "measurement"]):
-            metric, measurement = group[0]
-            df = group[1]
-            dt = dict(
-                metric=metric,
-                measurement=measurement,
-                mean=df["score"].mean(),
-                support_sum=df["support"].sum(),
-                support_mean=df["support"].mean(),
-                n_annotators=len(self.files),
-                annotators=names,
-                date=datetime.now().isoformat(timespec="seconds"),
-            )
-            records.append(dt)
+        agreement_dfs = [
+            ("entity", self.entity_agreement),
+            ("relation", self.relation_agreement),
+        ]
+        for annotation, agreement_df in agreement_dfs:
+            for group in agreement_df.groupby(["metric", "measurement"]):
+                metric, measurement = group[0]
+                df = group[1]
+                dt = dict(
+                    annotation=annotation,
+                    metric=metric,
+                    measurement=measurement,
+                    mean=df["score"].mean(),
+                    support_sum=df["support"].sum(),
+                    support_mean=df["support"].mean(),
+                    n_annotators=len(self.files),
+                    annotators=names,
+                    date=datetime.now().isoformat(timespec="seconds"),
+                )
+                records.append(dt)
         self.average_pairwise_score = pd.DataFrame.from_records(records)
 
     def save(self):
@@ -572,7 +578,7 @@ class PairwiseAgreementMany:
 )
 @click.option(
     "--f1-report/--no-f1-report",
-    default=False,
+    default=True,
     help="Produce f1 classification reports for each annotator pair / text",
 )
 def agree(directory: str, run: bool, save: bool, f1_report):
