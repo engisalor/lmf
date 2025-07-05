@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 import click
+import pandas as pd
 import torch
 import yaml
 from langchain_core.runnables import Runnable
@@ -85,16 +86,17 @@ class Query(Command):
         )
 
         # define LLM
-        llm = self.chat_model(
+        llm: Runnable = self.chat_model(
             model=self.model,
             temperature=self.temperature,
             rate_limiter=self.rate_limiter().get(),
             timeout=self.timeout,
             max_tokens=self.max_tokens,
+            seed=self.seed,
         ).get()
 
         # require structured output
-        if getattr(self.output_structure, "to_json", None):
+        if getattr(self.output_structure, "model_dump", None):
             llm = llm.with_structured_output(self.output_structure)
         self.llm_dump = self.add_dumpd("llm", llm)
 
@@ -106,11 +108,23 @@ class Query(Command):
         responses = llm.batch(prompts, think=self.think)
 
         # save
-        responses_json = [
-            x.to_json() if self.output_structure else x for x in responses
-        ]
+        if self.output_structure:
+            click.echo("... converting response objects to dict")
+            responses = [x.model_dump() for x in responses]
+            if responses[0].get("annotation"):
+                click.echo("... saving annotations as jsonl")
+                jsonl_file = self.output_file.with_suffix(f".{self.run}.jsonl")
+                responses = [x["annotation"] for x in responses]
+                df = pd.DataFrame.from_records(responses)
+                df["file"] = jsonl_file.name
+                df.to_json(
+                    jsonl_file,
+                    orient="records",
+                    lines=True,
+                )
+
         YamlLoader.save_yaml(
-            responses_json, file=self.output_file.with_suffix(f".{self.run}.yml")
+            responses, file=self.output_file.with_suffix(f".{self.run}.yml")
         )
         if self.run == 1:
             self.markdown_log(llm)
@@ -162,8 +176,8 @@ class Query(Command):
 )
 @click.option(
     "--timeout",
-    default=600,
-    help="Model response timeout (prevents long response times)",
+    default=300,
+    help="Response timeout (for cloud providers)",
 )
 @click.option(
     "--max_tokens",
