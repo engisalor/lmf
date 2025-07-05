@@ -61,3 +61,7 @@ def str_to_interval(s):
     """Returns a pandas Interval object from its string representation."""
     ls = [int(x) for x in s.strip("(]").split(", ")]
     return pd.Interval(*ls)
+
+
+def camel_case(text: str) -> str:
+    return text.title().replace(" ", "")[0].lower() + text.title().replace(" ", "")[1:]

@@ -10,7 +10,7 @@ import torch
 import yaml
 from langchain_core.prompts import ChatPromptTemplate
 
-from lmf import embedding, example_selector, prompt_template, vector_store
+from lmf import embedding, prompt_template, vector_store
 from lmf.command import Command
 from lmf.io import YamlLoader, prompts_to_yaml
 
@@ -132,7 +132,7 @@ class Prepare(Command):
     "-k",
     default=4,
     type=click.IntRange(min=0),
-    help="Number of examples for few-shot prompting (k <= len(examples); 0 = all)",
+    help="Number of examples for few-shot prompting (k <= len(examples))",
 )
 @click.option(
     "-e",
