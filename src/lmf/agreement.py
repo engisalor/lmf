@@ -128,11 +128,9 @@ class PairwiseAgreement:
         )
         self.relation = df
 
-    @staticmethod
     def _add_solitary_annotations(
-        group: pd.DataFrame, pairs: List[pd.DataFrame], id_col
+        self, group: pd.DataFrame, pairs: List[pd.DataFrame], id_col
     ) -> List[pd.DataFrame]:
-        annotators = group["annotator"].unique().tolist()
         ls_all = pairs
         solitary = [
             x
@@ -144,6 +142,7 @@ class PairwiseAgreement:
             _df1 = group[group[id_col] == s].copy()
             if not _df1.empty:
                 solitary_annotator = _df1.iloc[0]["annotator"]
+                other = [x for x in self.annotators if x != solitary_annotator][0]
                 # _df2 is the new row to match with the solitary annotation
                 _df2 = group[group[id_col] == s].copy()
                 _df2[id_col] = 0
@@ -151,15 +150,15 @@ class PairwiseAgreement:
                     _df2["label"] = ""
                 elif id_col == "rel_id":
                     _df2["type"] = ""
-                _df2["annotator"] = [x for x in annotators if x != solitary_annotator][
-                    0
-                ]
+                _df2["annotator"] = other
                 _df3 = pd.concat([_df1, _df2])
                 _df3.drop_duplicates(inplace=True)
                 _df3.sort_values([id_col], inplace=True)
                 _df3.reset_index(drop=True, inplace=True)
                 _bytes = bytes(
-                    json.dumps(_df3.to_dict("records"), sort_keys=True),
+                    json.dumps(
+                        _df3.to_dict("records"), sort_keys=True, ensure_ascii=False
+                    ),
                     encoding="utf-8",
                 )
                 _df3["hash"] = blake2b(_bytes).hexdigest()[:32]
@@ -182,14 +181,14 @@ class PairwiseAgreement:
             for x, text in self.entity.groupby("index"):
                 print("\nENTITY", x)
                 print(text)
-                self.entity_match.append(self._match(text))
+                self.entity_match.append(self._match((x, text)))
             self.entity_match = pd.concat(self.entity_match)
         # debug: process relation if any
         if debug and not self.relation.empty:
             for x, text in self.relation.groupby("index"):
                 print("\nRELATION", x)
                 print(text)
-                self.relation_match.append(self._match(text))
+                self.relation_match.append(self._match((x, text)))
             self.relation_match = pd.concat(self.relation_match)
             self.relation_match.reset_index(drop=True, inplace=True)
 
@@ -208,7 +207,8 @@ class PairwiseAgreement:
             df.sort_values([id_col], inplace=True)
             df.reset_index(drop=True, inplace=True)
             _bytes = bytes(
-                json.dumps(df.to_dict("records"), sort_keys=True), encoding="utf-8"
+                json.dumps(df.to_dict("records"), sort_keys=True, ensure_ascii=False),
+                encoding="utf-8",
             )
             df["hash"] = blake2b(_bytes).hexdigest()[:32]
             # full match: both indexes
