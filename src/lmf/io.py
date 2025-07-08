@@ -13,7 +13,11 @@ from lmf.utils import message_from_dict
 
 
 def get_json(obj):
-    return json.loads(json.dumps(obj, default=lambda o: getattr(o, "__dict__", str(o))))
+    return json.loads(
+        json.dumps(
+            obj, default=lambda o: getattr(o, "__dict__", str(o)), ensure_ascii=False
+        )
+    )
 
 
 class YamlLoader:

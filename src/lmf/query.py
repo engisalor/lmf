@@ -72,6 +72,7 @@ class Query(Command):
         self.output_file = self.output_dir / self.file_stem
         self.log_file = self.log_dir / self.output_dir.name / self.file_stem
         self.chain_graph_file = self.log_dir / Path("mermaid-graph.md")
+        self.gold_standard_file = self.project_dir / Path("gold.jsonl")
 
         # clear gpu memory
         torch.cuda.empty_cache()
@@ -108,24 +109,37 @@ class Query(Command):
         responses = llm.batch(prompts, think=self.think)
 
         # save
-        if self.output_structure:
-            click.echo("... converting response objects to dict")
+        if self.output_structure == schema.EntityRelationExtractor:
+            gold = pd.read_json(self.gold_standard_file, orient="records", lines=True)
+            jsonl_file = self.output_file.with_suffix(f".{self.run}.jsonl")
             responses = [x.model_dump() for x in responses]
-            if responses[0].get("annotation"):
-                click.echo("... saving annotations as jsonl")
-                jsonl_file = self.output_file.with_suffix(f".{self.run}.jsonl")
-                responses = [x["annotation"] for x in responses]
-                df = pd.DataFrame.from_records(responses)
-                df["file"] = jsonl_file.name
-                df.to_json(
-                    jsonl_file,
-                    orient="records",
-                    lines=True,
-                )
+            gold = gold[: self.sample]
+            df = pd.DataFrame.from_records(responses)
+            df["id"] = gold["id"]
+            df["text"] = gold["text"]
+            df["file"] = jsonl_file.name
+            records = df.groupby("id")[df.columns].apply(schema.triples_to_annotation)
+            for record in records:
+                record["Comments"] = [jsonl_file.with_suffix("").name] + record[
+                    "Comments"
+                ]
+            records.to_json(
+                jsonl_file,
+                orient="records",
+                lines=True,
+                force_ascii=False,
+            )
+            gold.to_json(
+                self.output_dir / self.gold_standard_file.name,
+                orient="records",
+                lines=True,
+                force_ascii=False,
+            )
+        else:
+            YamlLoader.save_yaml(
+                responses, file=self.output_file.with_suffix(f".{self.run}.yml")
+            )
 
-        YamlLoader.save_yaml(
-            responses, file=self.output_file.with_suffix(f".{self.run}.yml")
-        )
         if self.run == 1:
             self.markdown_log(llm)
         self.now("stop")
