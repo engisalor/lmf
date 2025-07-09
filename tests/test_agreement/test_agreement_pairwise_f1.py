@@ -39,8 +39,8 @@ def relationreference() -> pd.DataFrame:
 
 def test_entity_agreement_by_text(pa: PairwiseAgreement, entityreference: pd.DataFrame):
     for i in range(len(pa.entity_agreement_by_text)):
-        df_json = pa.entity_agreement_by_text.iloc[i].to_json()
-        ref_json = entityreference.iloc[i].to_json()
+        df_json = pa.entity_agreement_by_text.iloc[i].to_json(force_ascii=False)
+        ref_json = entityreference.iloc[i].to_json(force_ascii=False)
         assert df_json == ref_json
 
 
@@ -48,6 +48,6 @@ def test_relation_agreement_by_text(
     pa: PairwiseAgreement, relationreference: pd.DataFrame
 ):
     for i in range(len(pa.relation_agreement_by_text)):
-        df_json = pa.relation_agreement_by_text.iloc[i].to_json()
-        ref_json = relationreference.iloc[i].to_json()
+        df_json = pa.relation_agreement_by_text.iloc[i].to_json(force_ascii=False)
+        ref_json = relationreference.iloc[i].to_json(force_ascii=False)
         assert df_json == ref_json
