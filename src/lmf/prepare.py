@@ -193,7 +193,3 @@ def prepare(
         click.echo(f"... {command.script} - run - {run}")
         command.run = run
         command.execute()
-
-
-if __name__ == "__main__":
-    prepare()

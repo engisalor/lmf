@@ -11,6 +11,7 @@ from langchain.globals import set_debug
 from langchain_community.cache import SQLiteCache
 from langchain_core.globals import set_llm_cache
 
+from lmf.annotation import combine
 from lmf.prepare import prepare
 from lmf.query import query
 
@@ -102,6 +103,7 @@ def cli(
         ctx.obj["date"] = datetime.now().isoformat(timespec="seconds")
         ctx.obj["file_stem"] = Path(file_stem)
         ctx.obj["seed"] = seed
+        ctx.obj["debug"] = debug
 
         # check project path
         if not project_dir.exists():
@@ -148,6 +150,8 @@ def clear(ctx):
 
 cli.add_command(query)
 cli.add_command(prepare)
+cli.add_command(combine)
+
 
 if __name__ == "__main__":
     cli(obj={})
