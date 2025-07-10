@@ -5,14 +5,13 @@ import os
 from pathlib import Path
 
 import click
-import pandas as pd
 import torch
 import yaml
 from langchain_core.runnables import Runnable
 from pydantic import BaseModel
 from pydantic._internal._model_construction import ModelMetaclass
 
-from lmf import chat_model, rate_limiter, schema
+from lmf import chat_model, parse, rate_limiter, schema
 from lmf.command import Command
 from lmf.io import YamlLoader, prompts_from_yaml
 from lmf.utils import get_logger
@@ -104,45 +103,21 @@ class Query(Command):
         if getattr(self.output_structure, "model_dump", None):
             llm = llm.with_structured_output(self.output_structure)
         self.llm_dump = self.add_dumpd("llm", llm)
-
         # execute
         if self.sample:
             prompts = self.prompts[: self.sample]
         else:
             prompts = self.prompts
         responses = llm.batch(prompts, think=self.think)
-
-        # save
-        if self.output_structure == schema.EntityRelationExtractor:
-            gold = pd.read_json(self.gold_standard_file, orient="records", lines=True)
-            jsonl_file = self.output_file.with_suffix(f".{self.run}.jsonl")
-            responses = [x.model_dump() for x in responses]
-            gold = gold[: self.sample]
-            df = pd.DataFrame.from_records(responses)
-            df["id"] = gold["id"]
-            df["text"] = gold["text"]
-            df["file"] = jsonl_file.name
-            records = df.groupby("id")[df.columns].apply(schema.triples_to_annotation)
-            for record in records:
-                record["Comments"] = [jsonl_file.with_suffix("").name] + record[
-                    "Comments"
-                ]
-            records.to_json(
-                jsonl_file,
-                orient="records",
-                lines=True,
-                force_ascii=False,
-            )
-            gold.to_json(
-                self.output_dir / self.gold_standard_file.name,
-                orient="records",
-                lines=True,
-                force_ascii=False,
-            )
+        # use structured output parser
+        if self.output_structure and self.output_structure != schema.Unstructured:
+            structure = self.output_structure.__name__
+            parser: parse.Parser = getattr(parse, structure + "Parser")
+            parser(self, responses)
+        # or save to yaml
         else:
-            YamlLoader.save_yaml(
-                responses, file=self.output_file.with_suffix(f".{self.run}.yml")
-            )
+            out = self.output_file.with_suffix(f".{self.run}.yml")
+            YamlLoader.save_yaml(responses, file=out)
 
         if self.run == 1:
             self.markdown_log(llm)
