@@ -155,6 +155,8 @@ class PairwiseAgreement:
                 _df3.drop_duplicates(inplace=True)
                 _df3.sort_values([id_col], inplace=True)
                 _df3.reset_index(drop=True, inplace=True)
+                if id_col == "rel_id" and _df3.iloc[0]["rel_id"] == -1:
+                    _df3.loc[1, "type"] = "[has_relations]"
                 _bytes = bytes(
                     json.dumps(
                         _df3.to_dict("records"), sort_keys=True, ensure_ascii=False
