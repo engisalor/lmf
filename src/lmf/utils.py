@@ -1,5 +1,7 @@
 """Module for utility functions."""
 
+import logging
+
 import click
 import numpy as np
 import pandas as pd
@@ -65,3 +67,14 @@ def str_to_interval(s):
 
 def camel_case(text: str) -> str:
     return text.title().replace(" ", "")[0].lower() + text.title().replace(" ", "")[1:]
+
+
+def get_logger(name, level=logging.DEBUG, file=".lmf.log"):
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    handler = logging.FileHandler(file)
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(levelname)s:%(name)s.%(funcName)s %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
