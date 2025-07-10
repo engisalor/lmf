@@ -6,12 +6,12 @@ from typing import List, Literal
 
 import numpy as np
 import pandas as pd
+import regex
 from pydantic import BaseModel, Field
 
-from lmf.utils import camel_case, make_custom_parameter
+from lmf.utils import camel_case, get_logger, make_custom_parameter
 
-### classes for output structures go here ###
-# clear naming and descriptions improve LLM output quality
+logger = get_logger(__name__)
 
 
 class Unstructured(BaseModel):
@@ -19,14 +19,16 @@ class Unstructured(BaseModel):
 
 
 class SemanticRelationTriple(BaseModel):
-    """A unique semantic triple in the sentence, containing a from_span, relation type, and to_span."""
+    """A unique semantic triple in the sentence"""
 
     from_span: str = Field(
-        description="The first entity in the triple, which is the cause of the second entity"
+        description="The first entity, exactly as it appears in the text, which is the cause of the second entity"
     )
-    type: Literal["caused_by"]
+    type: Literal["caused_by"] = Field(
+        description="The type(s) of semantic relations to look for, paying careful attention to the directionality between the entities"
+    )
     to_span: str = Field(
-        description="The second entity in the triple, which is the result of the first entity"
+        description="The second entity, exactly as it appears in the text, which is the result of the first entity"
     )
 
 
@@ -38,15 +40,38 @@ class EntityRelationExtractor(BaseModel):
     )
 
 
+def fuzzy_match(text, span, id=None):
+    r = regex.compile(f"({re.escape(span)}){{i<=6:\s}}", re.IGNORECASE)
+    res = r.finditer(text)
+    matches = [(m.start(0), m.end(0)) for m in res]
+    if len(matches) == 1:
+        start_offset, end_offset = matches[0]
+        if text[start_offset:end_offset].startswith(" "):
+            start_offset += 1
+        if text[start_offset:end_offset].endswith(" "):
+            end_offset -= 1
+        msg = f"fuzzy - {id}"
+        msg += f"\nfuzzy.old {span}"
+        msg += f"\nfuzzy.new {text[start_offset:end_offset]}"
+        logger.info(msg)
+        return start_offset, end_offset
+    else:
+        msg = f"fail - {len(matches)} found - {id}"
+        msg += f"\nfuzzy.span {span}\nfuzzy.text {text}"
+        logger.warning(msg)
+        return 0, 0
+
+
 def offsets(row: pd.Series, span_name) -> tuple[int, int]:
     if span_name in row.index:
-        res = re.finditer(re.escape(row[span_name].strip()), row["text"])
+        span = row[span_name].strip()
+        res = re.finditer(re.escape(span), row["text"], re.IGNORECASE)
         matches = [(m.start(0), m.end(0)) for m in res]
         if len(matches) == 1:
             start_offset, end_offset = matches[0]
             return start_offset, end_offset
         else:
-            return 0, 0
+            return fuzzy_match(row["text"], span, row["id"])
     else:
         return 0, 0
 
@@ -77,7 +102,6 @@ def triples_to_annotation(df: pd.DataFrame, simplify_labels=True):
     bad_match = df[(df["from_offsets"] != (0, 0)) & (df["to_offsets"] != (0, 0))]
     if len(bad_match):
         annotation["Comments"].append(f"bad_match={len(bad_match)}")
-        print(f"... WARNING dropping {len(bad_match)} bad matches")
     # drop bad matches
     df = df[(df["from_offsets"] != (0, 0)) & (df["to_offsets"] != (0, 0))]
     # get spans w/ offsets
