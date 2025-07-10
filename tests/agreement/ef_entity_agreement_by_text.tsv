@@ -6,6 +6,7 @@ f1_score	0.0	e|f	entity	exact	2	3
 f1_score	0.0	e|f	entity	exact	4	4
 f1_score	0.5	e|f	entity	exact	4	5
 f1_score	0.0	e|f	entity	exact	6	6
+f1_score	0.0	e|f	entity	exact	4	7
 f1_score	1.0	e|f	entity	overlap	4	0
 f1_score	0.5	e|f	entity	overlap	4	1
 f1_score	0.5	e|f	entity	overlap	4	2
@@ -13,3 +14,4 @@ f1_score	1.0	e|f	entity	overlap	2	3
 f1_score	1.0	e|f	entity	overlap	4	4
 f1_score	0.5	e|f	entity	overlap	4	5
 f1_score	0.6666666667	e|f	entity	overlap	6	6
+f1_score	0.0	e|f	entity	overlap	4	7
