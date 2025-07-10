@@ -1,6 +1,7 @@
 import itertools
 import json
 import shutil
+import warnings
 from collections.abc import Callable
 from datetime import datetime
 from hashlib import blake2b
@@ -11,6 +12,10 @@ from typing import List
 import click
 import pandas as pd
 import sklearn
+
+from lmf.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class PairwiseAgreement:
@@ -181,15 +186,15 @@ class PairwiseAgreement:
         # debug: always process entities
         if debug:
             for x, text in self.entity.groupby("index"):
-                print("\nENTITY", x)
-                print(text)
+                logger.debug(f"entity {x}")
+                logger.debug(f"{text}")
                 self.entity_match.append(self._match((x, text)))
             self.entity_match = pd.concat(self.entity_match)
         # debug: process relation if any
         if debug and not self.relation.empty:
             for x, text in self.relation.groupby("index"):
-                print("\nRELATION", x)
-                print(text)
+                logger.debug(f"relation {x}")
+                logger.debug(f"{text}")
                 self.relation_match.append(self._match((x, text)))
             self.relation_match = pd.concat(self.relation_match)
             self.relation_match.reset_index(drop=True, inplace=True)
@@ -289,6 +294,8 @@ class PairwiseAgreement:
         X.reset_index(drop=True, inplace=True)
         Y.reset_index(drop=True, inplace=True)
 
+        if not self.user_warning:
+            warnings.simplefilter("ignore", UserWarning)
         out = pd.DataFrame(
             [
                 {"metric": metric[0].__name__, "score": metric[0](X, Y, **metric[1])}
@@ -314,6 +321,8 @@ class PairwiseAgreement:
                 output_dict=True,
                 zero_division=0,
             )
+            if not self.user_warning:
+                warnings.simplefilter("default", UserWarning)
             report = pd.DataFrame(report).transpose()
             report["annotation"] = annotation
             report["measurement"] = measurement
@@ -424,10 +433,12 @@ class PairwiseAgreement:
             (self.save_dir / names / Path(x[0]).with_suffix(".tsv"), x[1])
             for x in dataframes
         ]
-        print(f"... saving dataframes")
+        logger.info("saving dataframes")
         dataframes[0][0].parents[0].mkdir(exist_ok=True, parents=True)
         for file, df in dataframes:
             if not df.empty:
+                if "metric" in df.columns and "score" in df.columns:
+                    df = df.sort_values(["metric", "score"], ascending=[True, False])
                 df.to_csv(file, sep="\t", index=True)
 
     def __repr__(self):
@@ -444,8 +455,10 @@ class PairwiseAgreement:
         ],
         f1_classification_report: bool = True,
         save: bool = False,
+        user_warning: bool = True,
     ):
         self.f1_classification_report = f1_classification_report
+        self.user_warning = user_warning
         source = []
         self.entity_match = []
         self.relation_match = []
@@ -519,10 +532,12 @@ class PairwiseAgreementMany:
         dataframes = [
             (self.save_dir / Path(x[0]).with_suffix(".tsv"), x[1]) for x in dataframes
         ]
-        print(f"... saving PAM dataframes")
+        logger.info("saving PAM dataframes")
         dataframes[0][0].parents[0].mkdir(exist_ok=True, parents=True)
         for file, df in dataframes:
             if not df.empty:
+                if "metric" in df.columns and "score" in df.columns:
+                    df = df.sort_values(["metric", "score"], ascending=[True, False])
                 df.to_csv(file, sep="\t", index=True)
 
     def __init__(
@@ -535,6 +550,7 @@ class PairwiseAgreementMany:
             ("f1_score", {"average": "micro"}),
             ("matthews_corrcoef", {}),
         ],
+        user_warning: bool = True,
     ):
         self.directory = directory
         self.save_dir = Path(self.directory) / Path("annotator-agreement/")
@@ -542,11 +558,12 @@ class PairwiseAgreementMany:
         self.pair = []
         self.entity_agreement = pd.DataFrame()
         self.relation_agreement = pd.DataFrame()
+        self.user_warning = user_warning
         if save:
-            print(f"... clearing {self.save_dir}")
+            logger.info(f"clearing {self.save_dir}")
             shutil.rmtree(self.save_dir, ignore_errors=True)
         for file_x, file_y in itertools.combinations(self.files, 2):
-            print(f"... {file_x.name} - {file_y.name}")
+            logger.info(f"{file_x.name} - {file_y.name}")
             pair = PairwiseAgreement(
                 file_x,
                 file_y,
@@ -554,6 +571,7 @@ class PairwiseAgreementMany:
                 metrics=metrics,
                 save=save,
                 f1_classification_report=f1_classification_report,
+                user_warning=user_warning,
             )
             self.pair.append(pair)
         self.agreement_dfs()
@@ -583,17 +601,27 @@ class PairwiseAgreementMany:
     default=True,
     help="Produce f1 classification reports for each annotator pair / text",
 )
-def agree(directory: str, run: bool, save: bool, f1_report):
+@click.option(
+    "--user-warning/--no-user-warning",
+    default=True,
+    help="Whether to ignore user warnings for sklearn.metrics functions",
+)
+def agree(directory: str, run: bool, save: bool, f1_report, user_warning):
     """Calculates f1 and matthews_corrcoef pairwise agreement from JSONL annotations"""
+
     for d in directory:
-        msg = f"... calculating agreement for JSONL files in {d}"
-        click.echo(msg)
+        msg = f"calculating agreement for JSONL files in {d}"
+        logger.info(msg)
         pam = PairwiseAgreementMany(
-            directory=d, run_match=run, save=save, f1_classification_report=f1_report
+            directory=d,
+            run_match=run,
+            save=save,
+            f1_classification_report=f1_report,
+            user_warning=user_warning,
         )
         pam.agreement_dfs()
-        click.echo(f"\nAverage pairwise score: {d}")
-        click.echo(pam.average_pairwise_score)
+        logger.info(f"average pairwise score: {d}")
+        logger.info(f"{pam.average_pairwise_score}")
 
 
 if __name__ == "__main__":
