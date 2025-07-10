@@ -6,12 +6,13 @@ from typing import List
 from langchain_core.documents import Document
 from langchain_core.vectorstores import InMemoryVectorStore
 
-from lmf.utils import make_custom_parameter
-
 ### classes for vector stores go here ###
 # these must be VectorStore subclasses
 # methods from the base class may need to be replaced
 # when using vector stores other than InMemoryVectorStore
+from lmf.utils import get_logger, make_custom_parameter
+
+logger = get_logger(__name__)
 
 
 class VectorStoreType:
@@ -63,12 +64,12 @@ class VectorStoreType:
 
     def add(self, ls: List):
         """Detects text/documents from a list of dicts and adds to vector store."""
-        s = "... adding examples to vector store"
+        s = "adding examples to vector store"
         if isinstance(ls[0], Document) or ls[0].get("page_content"):
-            print(f"{s} - format = Documents")
+            logger.info(f"{s} - format = Documents")
             self.add_docs(ls)
         else:
-            print(f"{s} - format = texts")
+            logger.info(f"{s} - format = texts")
             self.add_texts(ls)
 
     def get(self) -> InMemoryVectorStore:
@@ -80,9 +81,9 @@ class VectorStoreType:
         top_n = 10
         for index, (id, doc) in enumerate(self.get().store.items()):
             if index < top_n:
-                print(id)
-                print(f"{doc['text']}")
-                print(f"{doc['metadata']}\n")
+                logger.debug(f"{id}")
+                logger.debug(f"{doc['text']}")
+                logger.debug(f"{doc['metadata']}\n")
             else:
                 break
 

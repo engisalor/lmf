@@ -13,6 +13,9 @@ from langchain_core.prompts import ChatPromptTemplate
 from lmf import embedding, prompt_template, vector_store
 from lmf.command import Command
 from lmf.io import YamlLoader, prompts_to_yaml
+from lmf.utils import get_logger
+
+logger = get_logger(__name__)
 
 classes_dt = {
     "Embeddings": list(embedding.PARAMETER.types.keys()),
@@ -80,7 +83,7 @@ class Prepare(Command):
         # load embeddings
         dt = {}
         if self.run == self.runs and self.embeddings == embedding.Ollama:
-            click.echo("... adding keep_alive = 0 to last Ollama request")
+            logger.debug("adding keep_alive = 0 to last Ollama request")
             dt = {"keep_alive": 0}
 
         _embeddings = self.embeddings(model=self.model, **dt).get()
@@ -190,6 +193,6 @@ def prepare(
     )
     # execute runs
     for run in range(1, ctx.obj["runs"] + 1):
-        click.echo(f"... {command.script} - run - {run}")
+        logger.info(f"{command.script} - run - {run}")
         command.run = run
         command.execute()

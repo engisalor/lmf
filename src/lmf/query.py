@@ -15,6 +15,10 @@ from pydantic._internal._model_construction import ModelMetaclass
 from lmf import chat_model, rate_limiter, schema
 from lmf.command import Command
 from lmf.io import YamlLoader, prompts_from_yaml
+from lmf.utils import get_logger
+
+logger = get_logger(__name__)
+
 
 classes_dt = {
     "Chat_models": list(chat_model.PARAMETER.types.keys()),
@@ -219,7 +223,6 @@ def query(
     rate_limiter: rate_limiter.RateLimiterType,
 ):
     """Executes LLM final prompts with a model, model provider and output structure."""
-
     command = Query(
         ctx=ctx,
         model=model,
@@ -234,6 +237,6 @@ def query(
     )
     # execute runs
     for run in range(1, ctx.obj["runs"] + 1):
-        click.echo(f"... {command.script} - run - {run}")
+        logger.info(f"{run}")
         command.run = run
         command.execute()

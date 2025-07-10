@@ -7,6 +7,10 @@ from typing import Any
 import yaml
 from langchain_core.load import dumpd
 
+from lmf.utils import get_logger
+
+logger = get_logger(__name__)
+
 
 class Command:
     """Base class for CLI commands."""
@@ -32,7 +36,7 @@ class Command:
     def save_yaml(self):
         """Saves the command instance's parameters to a log file."""
         self.duration()
-        print(f"... duration: {self.times.get('duration')}")
+        logger.info(f"duration: {self.times.get('duration')}")
         with open(self.log_file.with_suffix(f".{self.run}.log.yml"), "w") as f:
             yaml.dump(
                 vars(self), f, sort_keys=True, allow_unicode=True, encoding="utf-8"

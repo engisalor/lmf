@@ -14,6 +14,9 @@ from langchain_core.globals import set_llm_cache
 from lmf.annotation import combine
 from lmf.prepare import prepare
 from lmf.query import query
+from lmf.utils import get_logger
+
+logger = get_logger(__name__)
 
 load_dotenv()
 
@@ -90,7 +93,7 @@ def cli(
         if not seed:
             seed = None
         random.seed(seed)
-        print(f"... seed = {seed}")
+        logger.info(f"seed = {seed}")
 
         # ctx
         ctx.ensure_object(dict)
@@ -136,7 +139,7 @@ def clear(ctx):
         raise FileNotFoundError(m)
 
     # clear directories
-    click.echo("... clearing generated subdirectories")
+    logger.info("clearing generated subdirectories")
     for dir in [
         prompt_dir,
         output_dir,
