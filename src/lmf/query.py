@@ -1,12 +1,15 @@
 """Module for the `query` command, to make LLM queries."""
 
 import gc
+import importlib.util
 import os
+import sys
 from pathlib import Path
 
 import click
 import torch
 import yaml
+from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.runnables import Runnable
 from pydantic import BaseModel
 from pydantic._internal._model_construction import ModelMetaclass
@@ -14,7 +17,7 @@ from pydantic._internal._model_construction import ModelMetaclass
 from lmf import chat_model, parse, rate_limiter, schema
 from lmf.command import Command
 from lmf.io import YamlLoader, prompts_from_yaml
-from lmf.utils import get_logger
+from lmf.utils import get_logger, timer
 
 logger = get_logger(__name__)
 
@@ -29,6 +32,67 @@ epilog = f"\b\nRECIPES\t*case insensitive*\n{yaml.dump(classes_dt)}"
 
 class Query(Command):
     """Class to execute queries."""
+
+    def import_chain(self):
+        logger.info(f"using {self.chain_file}")
+        spec = importlib.util.spec_from_file_location(
+            "lmf.project_chain", self.chain_file
+        )
+        chain_module = importlib.util.module_from_spec(spec)
+        sys.modules["lmf.project_chain"] = chain_module
+        spec.loader.exec_module(chain_module)
+        self.chain_module = chain_module
+        structures = [
+            x
+            for x in vars(self.chain_module).values()
+            if getattr(x, "__base__", None) == BaseModel
+        ]
+        structures = [x for x in structures if not x.__name__.startswith("_")]
+        if not structures:
+            raise ValueError(f"no public pydantic classes in {self.chain_module}")
+        self.output_structure = structures
+        self.chain_sequential = getattr(self.chain_module, "sequential", False)
+
+    def parse_output(
+        self, responses: list[BaseModel], structure: BaseModel
+    ) -> parse.Parser:
+        parser: parse.Parser
+        if self.chain_module:
+            parser = getattr(self.chain_module, structure.__name__ + "Parser", None)
+        else:
+            parser = getattr(parse, structure.__name__ + "Parser", None)
+        if not parser:
+            parser = parse.YamlParser
+        parser(command=self, responses=responses)
+
+    @timer(logger=logger)
+    def run_call(self, structure, i=0):
+        if structure != schema.Unstructured:
+            llm: Runnable = self.llm.with_structured_output(structure)
+        responses = llm.batch(self.prompts, think=self.think)
+        if len(self.output_structure) > 1:
+            self.yaml_out = self.output_dir / Path(
+                f"{structure.__name__}.{self.run}.yml"
+            )
+        logger.info(f"{i} - {structure.__name__}")
+        return responses
+
+    def append_chat_history(self, responses: list[BaseMessage]):
+        for p, r in zip(self.prompts, responses):
+            p.messages.append(AIMessage(content=r.model_dump_json()))
+
+    @timer(logger=logger)
+    def run_chain_sequence(self):
+        for i, structure in enumerate(self.output_structure):
+            responses = self.run_call(structure, i)
+            self.append_chat_history(responses)
+        return responses
+
+    def markdown_log(self, llm: Runnable):
+        """Generate a markdown log file with a Mermaid chain graph."""
+        with open(self.chain_graph_file, "w") as f:
+            f.write(f"# {self.project_dir}\n\n{self.date}\n\n## chain graph\n\n")
+            f.write(f"```mermaid\n{llm.get_graph().draw_mermaid()}\n```\n")
 
     def __init__(
         self,
@@ -47,7 +111,7 @@ class Query(Command):
         self.ctx = ctx
         self.model = model
         self.chat_model = chat_model
-        self.output_structure = output_structure
+        self.output_structure = [output_structure]
         self.sample = sample
         self.temperature = temperature
         self.timeout = timeout
@@ -76,21 +140,26 @@ class Query(Command):
         self.log_file = self.log_dir / self.output_dir.name / self.file_stem
         self.chain_graph_file = self.log_dir / Path("mermaid-graph.md")
         self.gold_standard_file = self.project_dir / Path("gold.jsonl")
+        self.yaml_out = self.output_file.with_suffix(f".{self.run}.yml")
+        self.chain_file = self.project_dir / Path("chain.py")
+        self.chain_sequential = False
+        self.chain_module = None
 
         # clear gpu memory
         torch.cuda.empty_cache()
         gc.collect()
 
+    @timer(logger=logger)
     def execute(self):
         "Run the queries."
-        self.now("start")
         # load prompts
         self.prompts = prompts_from_yaml(
             self.prompt_file.with_suffix(f".{self.run}.yml")
         )
-
+        if self.sample:
+            self.prompts = self.prompts[: self.sample]
         # define LLM
-        llm: Runnable = self.chat_model(
+        self.llm: Runnable = self.chat_model(
             model=self.model,
             temperature=self.temperature,
             rate_limiter=self.rate_limiter().get(),
@@ -98,42 +167,33 @@ class Query(Command):
             max_tokens=self.max_tokens,
             seed=self.seed,
         ).get()
+        # get chain module
+        if self.chain_file.exists():
+            self.import_chain()
+        # make calls
+        if self.chain_sequential:
+            logger.info("sequential calls")
+            responses = self.run_chain_sequence()
+            self.parse_output(responses, self.output_structure[-1])
+            YamlLoader.save_yaml(
+                self.prompts, self.output_dir / Path("chat_history.yml")
+            )
 
-        # require structured output
-        if getattr(self.output_structure, "model_dump", None):
-            llm = llm.with_structured_output(self.output_structure)
-        self.llm_dump = self.add_dumpd("llm", llm)
-        # execute
-        if self.sample:
-            prompts = self.prompts[: self.sample]
         else:
-            prompts = self.prompts
-        responses = llm.batch(prompts, think=self.think)
-        # use structured output parser
-        if self.output_structure and self.output_structure != schema.Unstructured:
-            structure = self.output_structure.__name__
-            parser: parse.Parser = getattr(parse, structure + "Parser")
-            parser(self, responses)
-        # or save to yaml
-        else:
-            out = self.output_file.with_suffix(f".{self.run}.yml")
-            YamlLoader.save_yaml(responses, file=out)
+            logger.info("parallel calls")
+            for structure in self.output_structure:
+                responses = self.run_call(structure)
+                self.parse_output(responses, structure)
 
-        if self.run == 1:
-            self.markdown_log(llm)
-        self.now("stop")
-        self.save_yaml()
-
+        # TODO this needs adapting w/ run_chain_sequence
+        # if self.run == 1:
+        #     self.markdown_log(llm)
+        # self.save_yaml()
         # clear gpu memory
-        del llm
-        torch.cuda.empty_cache()
-        gc.collect()
-
-    def markdown_log(self, llm: Runnable):
-        """Generate a markdown log file with a Mermaid chain graph."""
-        with open(self.chain_graph_file, "w") as f:
-            f.write(f"# {self.project_dir}\n\n{self.date}\n\n## chain graph\n\n")
-            f.write(llm.get_graph().draw_mermaid())
+        # del llm
+        # torch.cuda.empty_cache()
+        # gc.collect()
+        # self.markdown_log(llm)
 
 
 @click.command(context_settings={"show_default": True}, epilog=epilog)
@@ -212,6 +272,6 @@ def query(
     )
     # execute runs
     for run in range(1, ctx.obj["runs"] + 1):
-        logger.info(f"{run}")
+        logger.info(f"run {run}")
         command.run = run
         command.execute()
