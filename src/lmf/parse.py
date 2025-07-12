@@ -8,6 +8,7 @@ import regex
 from pydantic import BaseModel
 
 from lmf.command import Command
+from lmf.io import YamlLoader
 from lmf.utils import camel_case, get_logger
 
 logger = get_logger(__name__)
@@ -20,6 +21,12 @@ class Parser:
 
     command: Command
     responses: list[BaseModel]
+
+
+class YamlParser(Parser):
+    def __init__(self, command: Command, responses: list[BaseModel]):
+        logger.info(f"{self.__class__.__name__} - saving {len(responses)} responses")
+        YamlLoader.save_yaml(responses, file=command.yaml_out)
 
 
 class EntityRelationExtractorParser(Parser):
@@ -35,7 +42,7 @@ class EntityRelationExtractorParser(Parser):
                 start_offset += 1
             if text[start_offset:end_offset].endswith(" "):
                 end_offset -= 1
-            msg = f"fuzzy - {id}"
+            msg = f"{id}"
             msg += f"\nfuzzy.old {span}"
             msg += f"\nfuzzy.new {text[start_offset:end_offset]}"
             logger.info(msg)
@@ -141,6 +148,7 @@ class EntityRelationExtractorParser(Parser):
             return annotation
 
     def __init__(self, command: Command, responses: list[BaseModel]):
+        logger.info(f" {self.__name__} - converting responses to JSONL")
         gold = pd.read_json(command.gold_standard_file, orient="records", lines=True)
         jsonl_file = command.output_file.with_suffix(f".{command.run}.jsonl")
         responses = [x.model_dump() for x in responses]
@@ -152,12 +160,14 @@ class EntityRelationExtractorParser(Parser):
         records = df.groupby("id")[df.columns].apply(self.triples_to_annotation)
         for record in records:
             record["Comments"] = [jsonl_file.with_suffix("").name] + record["Comments"]
+        logger.info(f"saving {len(responses)} responses")
         records.to_json(
             jsonl_file,
             orient="records",
             lines=True,
             force_ascii=False,
         )
+        logger.info(f"saving gold standard with LLM annotations")
         gold.to_json(
             command.output_dir / command.gold_standard_file.name,
             orient="records",
