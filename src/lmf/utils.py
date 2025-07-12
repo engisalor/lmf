@@ -1,6 +1,8 @@
 """Module for utility functions."""
 
 import logging
+from functools import wraps
+from time import perf_counter
 
 import click
 import numpy as np
@@ -74,7 +76,22 @@ def get_logger(name, level=logging.DEBUG, file=".lmf.log"):
     logger.setLevel(level)
     handler = logging.FileHandler(file)
     handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("%(levelname)s:%(name)s.%(funcName)s %(message)s")
+    formatter = logging.Formatter("%(levelname)s:%(name)s.%(funcName)s: %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
+
+
+def timer(logger: logging.Logger):
+    def decorator_timer(func):
+        @wraps(func)
+        def duration(*args, **kwargs):
+            t0 = perf_counter()
+            value = func(*args, **kwargs)
+            t1 = perf_counter()
+            logger.info(f"{func.__name__} - {t1 - t0:.3}")
+            return value
+
+        return duration
+
+    return decorator_timer
