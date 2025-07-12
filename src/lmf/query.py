@@ -67,8 +67,9 @@ class Query(Command):
 
     @timer(logger=logger)
     def run_call(self, structure, i=0):
+        llm: Runnable = self.llm
         if structure != schema.Unstructured:
-            llm: Runnable = self.llm.with_structured_output(structure)
+            llm = llm.with_structured_output(structure)
         responses = llm.batch(self.prompts, think=self.think)
         if len(self.output_structure) > 1:
             self.yaml_out = self.output_dir / Path(
