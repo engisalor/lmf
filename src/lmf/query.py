@@ -3,12 +3,14 @@
 import gc
 import importlib.util
 import os
+import random
 import sys
 from pathlib import Path
 
 import click
 import torch
 import yaml
+from langchain.chat_models.base import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.runnables import Runnable
 from pydantic import BaseModel
@@ -65,17 +67,55 @@ class Query(Command):
             parser = parse.YamlParser
         parser(command=self, responses=responses)
 
+    def append_system_prompt(self, msg, structure, prompts):
+        for prompt in prompts:
+            prompt.messages[0].content = prompt.messages[0].content.replace(msg, "")
+        if structure.__name__.startswith("Unstructured"):
+            w = f"{structure.__name__} - temporarily appending markdown instructions"
+            logger.warning(w)
+            for prompt in prompts:
+                prompt.messages[0].content += msg
+        return prompts
+
     @timer(logger=logger)
     def run_call(self, structure, i=0):
-        llm: Runnable = self.llm
-        if structure != schema.Unstructured:
+        # prompt sampling and randomization logic
+        if self.sample and not self.random:
+            logger.info(f"ordered sampling - {self.sample}/{len(self.prompts)}")
+            prompts = self.prompts[: self.sample].copy()
+        # TODO implement randomized sampling (requires bypass of prepare cmd)
+        # elif self.sample and self.random:
+        #     logger.info(f"randomized sampling - {self.sample}/{len(self.prompts)}")
+        #     prompts = random.sample(self.prompts.copy(), self.sample)
+        else:
+            prompts = self.prompts.copy()
+        # thinking logic
+        if structure.__name__.endswith("Think"):
+            think = True
+        else:
+            think = self.think
+        logger.info(f"{structure.__name__} - think={str(think).lower()}")
+        # create model
+        llm: BaseChatModel = self.chat_model(
+            model=self.model,
+            temperature=self.temperature,
+            rate_limiter=self.rate_limiter().get(),
+            timeout=self.timeout,
+            max_tokens=self.max_tokens,
+            seed=self.seed,
+            think=think,
+        ).get()
+        if not structure.__name__.startswith("Unstructured"):
             llm = llm.with_structured_output(structure)
-        responses = llm.batch(self.prompts, think=self.think)
-        if len(self.output_structure) > 1:
-            self.yaml_out = self.output_dir / Path(
-                f"{structure.__name__}.{self.run}.yml"
-            )
-        logger.info(f"{i} - {structure.__name__}")
+        # append msg to get better organized markdown for Unstructured
+        msg = "\nOutput the categories in markdown format, with the category label as a heading (starting with ##) and with a new line starting with a dash for each item"
+        prompts = self.append_system_prompt(msg, structure, prompts)
+        # run batch
+        responses = llm.batch(prompts)
+        self.yaml_out = self.output_file.with_suffix(
+            f".{structure.__name__}.{self.run}.yml"
+        )
+        logger.info(f"{i} - '{self.yaml_out}'")
         return responses
 
     def append_chat_history(self, responses: list[BaseMessage]):
@@ -102,6 +142,7 @@ class Query(Command):
         chat_model: chat_model.ChatModelType,
         output_structure: BaseModel,
         sample: int,
+        random: bool,
         temperature: float,
         timeout: int,
         max_tokens: int,
@@ -114,6 +155,7 @@ class Query(Command):
         self.chat_model = chat_model
         self.output_structure = [output_structure]
         self.sample = sample
+        self.random = random
         self.temperature = temperature
         self.timeout = timeout
         self.max_tokens = max_tokens
@@ -141,7 +183,6 @@ class Query(Command):
         self.log_file = self.log_dir / self.output_dir.name / self.file_stem
         self.chain_graph_file = self.log_dir / Path("mermaid-graph.md")
         self.gold_standard_file = self.project_dir / Path("gold.jsonl")
-        self.yaml_out = self.output_file.with_suffix(f".{self.run}.yml")
         self.chain_file = self.project_dir / Path("chain.py")
         self.chain_sequential = False
         self.chain_module = None
@@ -152,22 +193,12 @@ class Query(Command):
 
     @timer(logger=logger)
     def execute(self):
-        "Run the queries."
+        """Run the queries."""
+        self.yaml_out = self.output_file.with_suffix(f".{self.run}.yml")
         # load prompts
         self.prompts = prompts_from_yaml(
             self.prompt_file.with_suffix(f".{self.run}.yml")
         )
-        if self.sample:
-            self.prompts = self.prompts[: self.sample]
-        # define LLM
-        self.llm: Runnable = self.chat_model(
-            model=self.model,
-            temperature=self.temperature,
-            rate_limiter=self.rate_limiter().get(),
-            timeout=self.timeout,
-            max_tokens=self.max_tokens,
-            seed=self.seed,
-        ).get()
         # get chain module
         if self.chain_file.exists():
             self.import_chain()
@@ -177,14 +208,16 @@ class Query(Command):
             responses = self.run_chain_sequence()
             self.parse_output(responses, self.output_structure[-1])
             YamlLoader.save_yaml(
-                self.prompts, self.output_dir / Path("chat_history.yml")
+                self.prompts, self.output_dir / Path(f"chat-history.{self.run}.yml")
             )
-
         else:
             logger.info("parallel calls")
             for structure in self.output_structure:
                 responses = self.run_call(structure)
                 self.parse_output(responses, structure)
+
+        torch.cuda.empty_cache()
+        gc.collect()
 
         # TODO this needs adapting w/ run_chain_sequence
         # if self.run == 1:
@@ -205,7 +238,7 @@ class Query(Command):
     help="Name of model (download models beforehand)",
 )
 @click.option(
-    "--chat_model",
+    "--chat-model",
     default="Ollama",
     type=chat_model.PARAMETER,
     help="A chat model chat model class from chat.py",
@@ -222,6 +255,7 @@ class Query(Command):
     default=0,
     help="Sample size (run first N prompts in a file; 0 == all)",
 )
+@click.option("--random/--no-random", default=False, help="Toggle sample randomization")
 @click.option(
     "--temperature",
     type=click.FloatRange(min=0.0, max=1.0),
@@ -234,7 +268,7 @@ class Query(Command):
     help="Response timeout (for cloud providers)",
 )
 @click.option(
-    "--max_tokens",
+    "--max-tokens",
     default=10000,
     help="Model maximum tokens per response",
 )
@@ -252,6 +286,7 @@ def query(
     chat_model: chat_model.ChatModelType,
     output_structure: ModelMetaclass,
     sample: int,
+    random: bool,
     temperature: float,
     timeout: int,
     max_tokens: int,
@@ -265,6 +300,7 @@ def query(
         chat_model=chat_model,
         output_structure=output_structure,
         sample=sample,
+        random=random,
         temperature=temperature,
         timeout=timeout,
         max_tokens=max_tokens,
@@ -274,5 +310,5 @@ def query(
     # execute runs
     for run in range(1, ctx.obj["runs"] + 1):
         logger.info(f"run {run}")
-        command.run = run
+        setattr(command, "run", run)
         command.execute()
