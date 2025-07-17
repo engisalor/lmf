@@ -14,6 +14,31 @@ class Unstructured(BaseModel):
     """Unstructured chat output."""
 
 
+class UnstructuredThink(BaseModel):
+    """Unstructured chat output that enforces think=True."""
+
+
+class Hypernym(BaseModel):
+    hypernym: str = Field(
+        description="A hypernym (more generic concept) of the entity being analyzed",
+        min_length=1,
+        max_length=30,
+    )
+
+
+class Entity(BaseModel):
+    """An entity analyzed for conceptual categorization in a specialized domain"""
+
+    hyponym: str = Field(description="The entity being analyzed")
+    hypernyms: List[str] = Field(description="A list of parent concepts of the hyponym")
+
+
+class EntityList(BaseModel):
+    """A list of categorized entities"""
+
+    hyponym_and_harmonized_parent_concepts: List[Entity]
+
+
 class SemanticRelationTriple(BaseModel):
     """A unique semantic triple in the sentence"""
 
