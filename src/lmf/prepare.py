@@ -13,7 +13,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from lmf import embedding, prompt_template, vector_store
 from lmf.command import Command
 from lmf.io import YamlLoader, prompts_to_yaml
-from lmf.utils import get_logger
+from lmf.utils import get_logger, timer
 
 logger = get_logger(__name__)
 
@@ -36,7 +36,7 @@ class Prepare(Command):
         embeddings: embedding.EmbeddingsType,
         model: str,
         vector_store: vector_store.VectorStoreType,
-        prompt_template: prompt_template.PromptTemplateType,
+        template: prompt_template.PromptTemplateType,
         threshold: float,
     ):
         # input parameters
@@ -45,7 +45,7 @@ class Prepare(Command):
         self.embeddings = embeddings
         self.model = model
         self.vector_store = vector_store
-        self.prompt_template = prompt_template
+        self.template = template
         self.threshold = threshold
 
         # explicit ctx
@@ -76,55 +76,46 @@ class Prepare(Command):
         torch.cuda.empty_cache()
         gc.collect()
 
+    @timer(logger=logger)
     def execute(self):
         "Run prompt preparation."
-
-        self.now("start")
-        # load embeddings
-        dt = {}
-        if self.run == self.runs and self.embeddings == embedding.Ollama:
-            logger.debug("adding keep_alive = 0 to last Ollama request")
-            dt = {"keep_alive": 0}
-
-        _embeddings = self.embeddings(model=self.model, **dt).get()
-        self.add_dumpd("embeddings-dump", _embeddings)
-        _vector_store = self.vector_store(
-            embeddings=_embeddings,
-            examples=self.examples,
-        ).get()
-        prompt_template = self.prompt_template(
-            vector_store=_vector_store,
-            vectorstore_kwargs={"score_threshold": self.threshold},
-            k=self.k,
-        ).get()
-
-        # define final_prompt
+        logger.info(f"{self.template.__name__}")
         messages = []
         if self.system:
             messages.append(("system", self.system))
-        if prompt_template:
-            messages.append(prompt_template)
+        if self.template != prompt_template.NoTemplate:
+            dt = {}
+            if self.run == self.runs and self.embeddings == embedding.Ollama:
+                logger.debug("adding keep_alive = 0 to last Ollama request")
+                dt = {"keep_alive": 0}
+            _embeddings = self.embeddings(model=self.model, **dt).get()
+            self.add_dumpd("embeddings-dump", _embeddings)
+            _vector_store = self.vector_store(
+                embeddings=_embeddings,
+                examples=self.examples,
+            ).get()
+            template = self.template(
+                vector_store=_vector_store,
+                vectorstore_kwargs={"score_threshold": self.threshold},
+                k=self.k,
+            ).get()
+            messages.append(template)
+            del _embeddings
+            del _vector_store
+            torch.cuda.empty_cache()
+            gc.collect()
+
+        # define final_prompt
         messages.append(("human", "{input}"))
         final_prompt = ChatPromptTemplate.from_messages(messages)
         self.add_dumpd("final_prompt-dump", final_prompt)
-
-        # run example selector
+        # add inputs
         prompts = final_prompt.batch(self.inputs)
-
         # save prompts
         prompts_to_yaml(
             prompts=prompts, file=self.prompt_file.with_suffix(f".{self.run}.yml")
         )
-        self.now("stop")
         self.save_yaml()
-
-        # clear gpu memory
-        del _embeddings
-        del _vector_store
-        del prompt_template
-        del final_prompt
-        torch.cuda.empty_cache()
-        gc.collect()
 
 
 @click.command(
@@ -158,8 +149,8 @@ class Prepare(Command):
     help="A vector_store.VectorStoreType subclass from schema.py",
 )
 @click.option(
-    "-p",
-    "--prompt-template",
+    "-t",
+    "--template",
     default="SemanticFewShot",
     type=prompt_template.PARAMETER,
     help="A prompt_template.PromptTemplateType subclass from prompt_template.py",
@@ -177,7 +168,7 @@ def prepare(
     embeddings: embedding.EmbeddingsType,
     model: str,
     vector_store: vector_store.VectorStoreType,
-    prompt_template: prompt_template.PromptTemplateType,
+    template: prompt_template.PromptTemplateType,
     threshold: float,
 ):
     """Prepares LLM final prompts from a recipe of components."""
@@ -188,7 +179,7 @@ def prepare(
         embeddings=embeddings,
         model=model,
         vector_store=vector_store,
-        prompt_template=prompt_template,
+        template=template,
         threshold=threshold,
     )
     # execute runs
