@@ -25,7 +25,6 @@ class Parser:
 
 class YamlParser(Parser):
     def __init__(self, command: Command, responses: list[BaseModel]):
-        logger.info(f"{self.__class__.__name__} - saving {len(responses)} responses")
         YamlLoader.save_yaml(responses, file=command.yaml_out)
 
 
