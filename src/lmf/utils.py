@@ -1,6 +1,7 @@
 """Module for utility functions."""
 
 import logging
+from datetime import datetime
 from functools import wraps
 from time import perf_counter
 
@@ -85,13 +86,15 @@ def get_logger(name, level=logging.DEBUG, file=".lmf.log"):
 def timer(logger: logging.Logger):
     def decorator_timer(func):
         @wraps(func)
-        def duration(*args, **kwargs):
+        def time(*args, **kwargs):
+            now = datetime.now().isoformat(timespec="minutes")
+            logger.info(f"{func.__name__} - {now}")
             t0 = perf_counter()
             value = func(*args, **kwargs)
             t1 = perf_counter()
-            logger.info(f"{func.__name__} - {t1 - t0:.3}")
+            logger.info(f"{func.__name__} - {round(t1 - t0, 3)}")
             return value
 
-        return duration
+        return time
 
     return decorator_timer
