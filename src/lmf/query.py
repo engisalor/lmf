@@ -67,14 +67,14 @@ class Query(Command):
             parser = parse.YamlParser
         parser(command=self, responses=responses)
 
-    def append_system_prompt(self, msg, structure, prompts):
+    def append_prompt(self, msg, structure, prompts):
         for prompt in prompts:
-            prompt.messages[0].content = prompt.messages[0].content.replace(msg, "")
+            prompt.messages[-1].content = prompt.messages[-1].content.replace(msg, "")
         if structure.__name__.startswith("Unstructured"):
             w = f"{structure.__name__} - temporarily appending markdown instructions"
             logger.warning(w)
             for prompt in prompts:
-                prompt.messages[0].content += msg
+                prompt.messages[-1].content += msg
         return prompts
 
     @timer(logger=logger)
@@ -108,8 +108,8 @@ class Query(Command):
         if not structure.__name__.startswith("Unstructured"):
             llm = llm.with_structured_output(structure)
         # append msg to get better organized markdown for Unstructured
-        msg = "\nOutput the categories in markdown format, with the category label as a heading (starting with ##) and with a new line starting with a dash for each item"
-        prompts = self.append_system_prompt(msg, structure, prompts)
+        msg = "\n**NOTE**\n\nOutput the categories in markdown format, with the category label as a heading (starting with ##) and with a new line starting with a dash for each item"
+        prompts = self.append_prompt(msg, structure, prompts)
         # run batch
         responses = llm.batch(prompts)
         self.yaml_out = self.output_file.with_suffix(
