@@ -3,8 +3,8 @@
 import gc
 import importlib.util
 import os
-import random
 import sys
+from ast import literal_eval
 from pathlib import Path
 
 import click
@@ -94,9 +94,9 @@ class Query(Command):
             think = True
         else:
             think = self.think
-        logger.info(f"{structure.__name__} - think={str(think).lower()}")
         # create model
-        llm: BaseChatModel = self.chat_model(
+        params = self.chat_model_param.copy()
+        params |= dict(
             model=self.model,
             temperature=self.temperature,
             rate_limiter=self.rate_limiter().get(),
@@ -104,7 +104,9 @@ class Query(Command):
             max_tokens=self.max_tokens,
             seed=self.seed,
             think=think,
-        ).get()
+        )
+        logger.debug(f"chat model params {params}")
+        llm: BaseChatModel = self.chat_model(**params).get()
         if not structure.__name__.startswith("Unstructured"):
             llm = llm.with_structured_output(structure)
         # append msg to get better organized markdown for Unstructured
@@ -140,6 +142,7 @@ class Query(Command):
         ctx,
         model: str,
         chat_model: chat_model.ChatModelType,
+        chat_model_param: tuple,
         output_structure: BaseModel,
         sample: int,
         random: bool,
@@ -161,6 +164,9 @@ class Query(Command):
         self.max_tokens = max_tokens
         self.think = think
         self.rate_limiter = rate_limiter
+        chat_model_param = [x.strip().split("=") for x in chat_model_param]
+        chat_model_param = {x[0].strip(): literal_eval(x[1]) for x in chat_model_param}
+        self.chat_model_param: dict = chat_model_param
 
         # explicit ctx
         self.base_dir: Path = ctx.obj["base_dir"]
@@ -216,18 +222,11 @@ class Query(Command):
                 responses = self.run_call(structure)
                 self.parse_output(responses, structure)
 
+        # TODO this needs rewriting for use w/ sequential/parallel calls
+        # self.markdown_log(llm)
         torch.cuda.empty_cache()
         gc.collect()
-
-        # TODO this needs adapting w/ run_chain_sequence
-        # if self.run == 1:
-        #     self.markdown_log(llm)
-        # self.save_yaml()
-        # clear gpu memory
-        # del llm
-        # torch.cuda.empty_cache()
-        # gc.collect()
-        # self.markdown_log(llm)
+        self.save_yaml()
 
 
 @click.command(context_settings={"show_default": True}, epilog=epilog)
@@ -242,6 +241,11 @@ class Query(Command):
     default="Ollama",
     type=chat_model.PARAMETER,
     help="A chat model chat model class from chat.py",
+)
+@click.option(
+    "--chat-model-param",
+    multiple=True,
+    help="A parameter to pass to the chat model in the format 'key=value'",
 )
 @click.option(
     "-o",
@@ -284,6 +288,7 @@ def query(
     ctx,
     model: str,
     chat_model: chat_model.ChatModelType,
+    chat_model_param: tuple[str],
     output_structure: ModelMetaclass,
     sample: int,
     random: bool,
@@ -298,6 +303,7 @@ def query(
         ctx=ctx,
         model=model,
         chat_model=chat_model,
+        chat_model_param=chat_model_param,
         output_structure=output_structure,
         sample=sample,
         random=random,
