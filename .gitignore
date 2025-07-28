@@ -19,6 +19,7 @@ data
 local
 *.lock
 *.db
+*.log
 log/
 prompt/
 output/
