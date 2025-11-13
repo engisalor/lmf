@@ -3,7 +3,9 @@
 import os
 
 from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 
+from lmf.rate_limiter import Memory
 from lmf.utils import make_custom_parameter
 
 ### classes for chat model chat models go here ###
@@ -33,6 +35,26 @@ class Ollama(ChatModelType):
         **kwargs,
     ):
         self.chat_model = ChatOllama(
+            model=model,
+            temperature=temperature,
+            rate_limiter=rate_limiter,
+            timeout=timeout,
+            max_tokens=max_tokens,
+            **kwargs,
+        )
+
+
+class OpenAI(ChatModelType):
+    def __init__(
+        self,
+        model="gpt-5-nano-2025-08-07",
+        temperature=0,
+        rate_limiter=Memory,
+        timeout=600,
+        max_tokens=10000,
+        **kwargs,
+    ):
+        self.chat_model = ChatOpenAI(
             model=model,
             temperature=temperature,
             rate_limiter=rate_limiter,
