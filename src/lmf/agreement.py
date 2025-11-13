@@ -172,26 +172,26 @@ class PairwiseAgreement:
                 ls_all.append(_df3)
         return ls_all
 
-    def match(self, debug=False):
+    def match(self):
         # always process entities
-        if not debug:
+        if not self.debug:
             with Pool() as p:
                 entity_match = p.map(self._match, self.entity.groupby("index"))
                 self.entity_match = pd.concat(entity_match)
         # process relation if any
-        if not debug and not self.relation.empty:
+        if not self.debug and not self.relation.empty:
             with Pool() as p:
                 relation_match = p.map(self._match, self.relation.groupby("index"))
                 self.relation_match = pd.concat(relation_match)
         # debug: always process entities
-        if debug:
+        if self.debug:
             for x, text in self.entity.groupby("index"):
                 logger.debug(f"entity {x}")
                 logger.debug(f"{text}")
                 self.entity_match.append(self._match((x, text)))
             self.entity_match = pd.concat(self.entity_match)
         # debug: process relation if any
-        if debug and not self.relation.empty:
+        if self.debug and not self.relation.empty:
             for x, text in self.relation.groupby("index"):
                 logger.debug(f"relation {x}")
                 logger.debug(f"{text}")
@@ -296,12 +296,24 @@ class PairwiseAgreement:
 
         if not self.user_warning:
             warnings.simplefilter("ignore", UserWarning)
-        out = pd.DataFrame(
-            [
-                {"metric": metric[0].__name__, "score": metric[0](X, Y, **metric[1])}
-                for metric in self.metrics
-            ]
-        )
+
+        try:
+            out = pd.DataFrame(
+                [
+                    {
+                        "metric": metric[0].__name__,
+                        "score": metric[0](X, Y, **metric[1]),
+                    }
+                    for metric in self.metrics
+                ]
+            )
+        except Exception as e:
+            fatal_file = Path(".lmf-fatal.log")
+            logger.fatal(e)
+            logger.fatal(f"See {fatal_file}")
+            df.to_csv(".lmf-fatal.log", sep="\t")
+            exit(f"Error computing metric, see log file and {fatal_file}")
+
         out["annotators"] = "|".join(annotators)
         out["annotation"] = annotation
         out["measurement"] = measurement
@@ -456,9 +468,11 @@ class PairwiseAgreement:
         f1_classification_report: bool = True,
         save: bool = False,
         user_warning: bool = True,
+        debug: bool = False,
     ):
         self.f1_classification_report = f1_classification_report
         self.user_warning = user_warning
+        self.debug = debug
         source = []
         self.entity_match = []
         self.relation_match = []
@@ -551,6 +565,7 @@ class PairwiseAgreementMany:
             ("matthews_corrcoef", {}),
         ],
         user_warning: bool = True,
+        debug: bool = False,
     ):
         self.directory = directory
         self.save_dir = Path(self.directory) / Path("annotator-agreement/")
@@ -559,6 +574,7 @@ class PairwiseAgreementMany:
         self.entity_agreement = pd.DataFrame()
         self.relation_agreement = pd.DataFrame()
         self.user_warning = user_warning
+        self.debug = debug
         if save:
             logger.info(f"clearing {self.save_dir}")
             shutil.rmtree(self.save_dir, ignore_errors=True)
@@ -572,6 +588,7 @@ class PairwiseAgreementMany:
                 save=save,
                 f1_classification_report=f1_classification_report,
                 user_warning=user_warning,
+                debug=self.debug,
             )
             self.pair.append(pair)
         self.agreement_dfs()
@@ -606,7 +623,12 @@ class PairwiseAgreementMany:
     default=True,
     help="Whether to ignore user warnings for sklearn.metrics functions",
 )
-def agree(directory: str, run: bool, save: bool, f1_report, user_warning):
+@click.option(
+    "--debug/--no-debug",
+    default=False,
+    help="Increase logging verbosity (outputs to .lmf.log)",
+)
+def agree(directory: str, run: bool, save: bool, f1_report, user_warning, debug):
     """Calculates f1 and matthews_corrcoef pairwise agreement from JSONL annotations"""
 
     for d in directory:
@@ -618,6 +640,7 @@ def agree(directory: str, run: bool, save: bool, f1_report, user_warning):
             save=save,
             f1_classification_report=f1_report,
             user_warning=user_warning,
+            debug=debug,
         )
         pam.agreement_dfs()
         logger.info(f"average pairwise score: {d}")
