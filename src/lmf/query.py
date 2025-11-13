@@ -2,15 +2,18 @@
 
 import gc
 import importlib.util
+import json
 import os
 import sys
 from ast import literal_eval
+from datetime import datetime
 from pathlib import Path
 
 import click
 import torch
 import yaml
 from langchain.chat_models.base import BaseChatModel
+from langchain_core.callbacks import get_usage_metadata_callback
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.runnables import Runnable
 from pydantic import BaseModel
@@ -90,10 +93,10 @@ class Query(Command):
         else:
             prompts = self.prompts.copy()
         # thinking logic
-        if structure.__name__.endswith("Think"):
-            think = True
-        else:
-            think = self.think
+        # if structure.__name__.endswith("Think"):
+        #     think = True
+        # else:
+        #     think = self.think
         # create model
         params = self.chat_model_param.copy()
         params |= dict(
@@ -103,7 +106,7 @@ class Query(Command):
             timeout=self.timeout,
             max_tokens=self.max_tokens,
             seed=self.seed,
-            think=think,
+            # think=think,
         )
         logger.debug(f"chat model params {params}")
         llm: BaseChatModel = self.chat_model(**params).get()
@@ -113,9 +116,16 @@ class Query(Command):
         msg = "\n**NOTE**\n\nOutput the categories in markdown format, with the category label as a heading (starting with ##) and with a new line starting with a dash for each item"
         prompts = self.append_prompt(msg, structure, prompts)
         # run batch
-        responses = llm.batch(prompts)
+        u_file = Path(".lmf-usage.log")
+        with get_usage_metadata_callback() as cb:
+            responses = llm.batch(prompts)
+            dt_usage = cb.usage_metadata
+            dt_usage["date"] = datetime.now().isoformat()
+            with open(u_file, "a") as f:
+                f.write(json.dumps(dt_usage, sort_keys=True) + "\n")
+
         self.yaml_out = self.output_file.with_suffix(
-            f".{structure.__name__}.{self.run}.yml"
+            f".{self.model.replace('.', '~')}.{structure.__name__}.{self.run}.yml"
         )
         logger.info(f"{i} - '{self.yaml_out}'")
         return responses
