@@ -60,7 +60,11 @@ class VectorStoreType:
         """
         to_vectorize = self.vectorize_texts(texts)
         metadatas = self.texts_to_metadatas(texts)
-        self.vector_store.add_texts(to_vectorize, metadatas=metadatas)
+        # TODO below line requires testing to prevent memory errors in some cases
+        # using sequential version for now
+        # self.vector_store.add_texts(to_vectorize, metadatas=metadatas)
+        for text, metadata in zip(to_vectorize, metadatas):
+            self.vector_store.add_texts([text], metadatas=[metadata])
 
     def add(self, ls: List):
         """Detects text/documents from a list of dicts and adds to vector store."""
@@ -96,7 +100,11 @@ class Memory(VectorStoreType):
     def __init__(self, embeddings, examples, **kwargs):
         embeddings = embeddings
         self.vector_store = self.vector_store(embeddings, **kwargs)
-        self.add(examples)
+        if examples:
+            logger.debug(f"adding {len(examples)} examples")
+            self.add(examples)
+        else:
+            logger.info("no examples given")
 
 
 ### add new classes above this line ###
