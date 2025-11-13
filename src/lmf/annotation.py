@@ -100,6 +100,15 @@ def combine(ctx, verbose):
             df["annotator"] == name
         ].apply(bump_entities, by=by, axis=1)
 
+    def add_name_to_comment(row):
+        comments = row["Comments"]
+        annotator = row["annotator"]
+        for dt in comments:
+            dt["comment"] = f"{annotator}: {dt['comment']}"
+        return comments
+
+    df["Comments"] = df.apply(add_name_to_comment, axis=1)
+
     if verbose:
         _ = df.apply(validate_relation, axis=1)
 
