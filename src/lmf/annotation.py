@@ -58,24 +58,42 @@ def validate_relation(row):
     default=True,
     help="Increase verbosity",
 )
+@click.option(
+    "-d",
+    "--directory",
+    default=None,
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+    help="Directory with files to compare (optional, defaults to ctx.output_dir)",
+)
 @click.pass_context
-def combine(ctx, verbose):
+def combine(ctx, verbose, directory):
     """Combines annotation files in ./output for comparison in Docanno."""
+    # custom directory
+    if directory:
+        project_dir = Path(directory)
+        output_dir = Path(directory)
+        debug = False
     # explicit ctx
-    project_dir: Path = ctx.obj["project_dir"]
-    output_dir: Path = ctx.obj["output_dir"]
-    debug: str = ctx.obj["debug"]
+    else:
+        project_dir: Path = ctx.obj["project_dir"]
+        output_dir: Path = ctx.obj["output_dir"]
+        debug: str = ctx.obj["debug"]
 
     logger.info(
         "combining annotation docs - to view, load 'annotations-combined.jsonl' in Doccano"
     )
 
+    out_file = Path("annotations-combined.jsonl")
     files = output_dir.glob("*.jsonl")
-    files = [x for x in files]
-    output = project_dir / Path("annotations-combined.jsonl")
-    annotators = ["gold"] + sorted(
-        [x.with_suffix("").name for x in files if not x.stem.startswith("gold")]
-    )
+    files = [x for x in files if x.stem != out_file.stem]
+    output = project_dir / out_file
+
+    if directory:
+        annotators = [x.with_suffix("").name for x in files]
+    else:
+        annotators = ["gold"] + sorted(
+            [x.with_suffix("").name for x in files if not x.stem.startswith("gold")]
+        )
     logger.info(f"annotators: {annotators}")
 
     def sorter(column: pd.Series):
