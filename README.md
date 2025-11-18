@@ -2,7 +2,7 @@
 
 This repo is for designing, organizing and running LLM experiments with Python and [LangChain](https://docs.langchain.com/oss/python) (a language model framework, LMF). It has a modular structure for building just about any type of chatbot or generative LLM task supported by LangChain.
 
-We use LMF for doing applied linguistics research. See our conference article for [eLex 2025](https://elex.link/elex2025/) (upcoming): `Inductive Categorization for Conceptual Analysis with LLMs: A Case Study from the Humanitarian Encyclopedia`.
+We use LMF for doing applied linguistics research. See our conference article for [eLex 2025](https://elex.link/elex2025/wp-content/uploads/eLex2025-50-Isaacs_etal.pdf).
 
 ## Introduction
 
@@ -24,7 +24,7 @@ See `lmf --help` for overall usage and `lmf <command> --help` for individual com
 
 ### Design and stability
 
-We designed LMF to conduct applied linguistics research, with all its specific needs and quirks. Hopefully it's easy to use and modify, but it **should not be considered a stable dependency**. Forking the repo and reviewing new commits before accepting them would be prudent for ongoing projects.
+We designed LMF to conduct applied linguistics research, with all its specific needs and quirks. Hopefully it's easy to use and modify, but it **should not be considered a stable dependency**. Forking the repo and reviewing new commits would be prudents.
 
 ## Understanding projects
 
@@ -183,4 +183,18 @@ OPENAI_API_KEY=
 
 ## Citing
 
-If you use LMF, please cite this software. Details for the eLex 2025 paper that introduces it are forthcoming.
+Please cite this paper:
+
+```bibtex
+@inproceedings{
+	address = {Bled, Slovenia},
+	title = {Inductive {Categorization} for {Conceptual} {Analysis} with {LLMs}: {A} {Case} {Study} from the {Humanitarian} {Encyclopedia}},
+	url = {https://elex.link/elex2025/wp-content/uploads/eLex2025-50-Isaacs_etal.pdf},
+	booktitle = {Electronic lexicography in the 21st century ({eLex} 2023): {Intelligent} lexicography. {Proceedings} of the {eLex} 2025 conference},
+	publisher = {Lexical Computing},
+	author = {Isaacs, Loryn and Chambó, Santiago and León-Araúz, Pilar},
+	editor = {Kosem, Iztok and Jakubíček, Miloš and Medveď, Marek and Zgaga, Karolina and Arhar Holdt, Špela and Munda, Tina and Salgado, Ana},
+	year = {2025},
+	pages = {866--887},
+}
+```
